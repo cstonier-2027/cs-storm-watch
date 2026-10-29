@@ -374,6 +374,13 @@ def compose(now, spc, alerts, reports, watches, mds, hrrr, hours_stats, cities, 
     for _, s in hs:
         for i in s["rain"]:
             hours_at[i] += 1
+    # States with flood products; when there are any, heavy-rain towns elsewhere are left out of the flooding text.
+    flood_abbr = set()
+    for ev in ("Flash Flood Warning", "Flood Warning", "Flood Watch", "Flash Flood Watch", "Flood Advisory"):
+        for a in by_event.get(ev, []):
+            m = re.search(r"\b([A-Z]{2})$", office(a.get("sender")))
+            if m:
+                flood_abbr.add(m.group(1))
     town_hours = Counter()
     for i, n in hours_at.items():
         if n < 3:
@@ -381,7 +388,7 @@ def compose(now, spc, alerts, reports, watches, mds, hrrr, hours_stats, cities, 
         x, y = i % pw, i // pw
         lon, lat = pixel_lonlat(frame, pw, ph, x, y)
         town, _ = places.near(lon, lat, max_km=80)
-        if town:
+        if town and (not flood_abbr or town[-2:] in flood_abbr):
             town_hours[town] = max(town_hours[town], n)
     rain_towns = [t for t, n in town_hours.most_common(8)]
 
