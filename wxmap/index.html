@@ -115,6 +115,15 @@ canvas#map { position: absolute; inset: 0; width: 100%; height: 100%; display: b
 .validtag .k { font: 600 11px var(--f-display); letter-spacing: .16em; text-transform: uppercase; color: var(--accent); }
 .validtag .v { font: 500 15px var(--f-mono); font-variant-numeric: tabular-nums; }
 .validtag .s { font: 11px var(--f-mono); color: var(--ink-3); }
+.validtag .w { font: 11px var(--f-mono); color: #9fd0ff; margin-top: 3px; }
+.wpcrow { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 6px; margin-top: 4px; }
+.wpcrow .sel { margin-top: 0; }
+.wpcrow button { border: 1px solid var(--line); background: var(--panel-2); border-radius: 4px; width: 34px; cursor: pointer; }
+.wpcrow button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.keyrow .fr { width: 22px; height: 10px; border-radius: 0; background: none; position: relative; }
+.keyrow .fr::before { content: ""; position: absolute; left: 0; right: 0; top: 4px; border-top: 2px solid var(--c); }
+.keyrow .fr.dash::before { border-top-style: dashed; }
+.keyrow b.hl { font: 700 14px var(--f-display); width: 12px; text-align: center; }
 .loading { position: absolute; inset: 0; display: grid; place-items: center; font: 600 15px var(--f-display); letter-spacing: .2em; text-transform: uppercase; color: var(--ink-2); z-index: 4; background: var(--ocean); }
 
 .timeline {
@@ -219,6 +228,7 @@ canvas#map { position: absolute; inset: 0; width: 100%; height: 100%; display: b
   .stage { order: -1; height: 72vh; min-height: 420px; }
   .rail.right { order: 0; }
   .rail:not(.right) { order: 1; }
+  .alist { max-height: 55vh; overflow-y: auto; overscroll-behavior: contain; }  /* keep the layer toggles reachable */
   .rail, .rail.right { display: flex; border: 0; border-top: 1px solid var(--line); overflow: visible; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
   .timeline { grid-template-columns: auto auto auto minmax(0,1fr); }
   .speed { display: none; }
@@ -264,6 +274,20 @@ canvas#map { position: absolute; inset: 0; width: 100%; height: 100%; display: b
         <div class="keyrow" id="spckey" style="margin-top:8px"></div>
       </section>
       <section class="sec">
+        <h2>Fronts &amp; pressure <small>WPC</small></h2>
+        <label class="tg"><input type="checkbox" id="t-wpc"><span>Isobars, fronts, highs &amp; lows</span><span class="n" id="n-wpc"></span></label>
+        <div class="wpcrow">
+          <select class="sel" id="wpcsel" aria-label="Fronts and pressure chart time"><option value="auto">Match the map's time</option></select>
+          <button id="wpcplay" aria-pressed="false" aria-label="Animate through day 7" title="Animate through day 7">▶</button>
+        </div>
+        <div class="keyrow" style="margin-top:8px">
+          <span><b class="hl" style="color:#5aaaff">H</b>High</span><span><b class="hl" style="color:#ff5050">L</b>Low</span>
+          <span><i class="fr" style="--c:#5aaaff"></i>Cold front</span><span><i class="fr" style="--c:#ff5050"></i>Warm front</span>
+          <span><i class="fr" style="--c:#b04cff"></i>Occluded</span><span><i class="fr dash" style="--c:#ff8a2a"></i>Trough</span>
+          <span><i class="fr" style="--c:#e2ecf6"></i>Isobars (mb, every 4)</span>
+        </div>
+      </section>
+      <section class="sec">
         <h2>Basemap</h2>
         <div class="seg" role="group" aria-label="Basemap style" style="grid-template-columns:repeat(2,1fr)">
           <button id="b-terrain" aria-pressed="true">Terrain</button>
@@ -291,13 +315,13 @@ canvas#map { position: absolute; inset: 0; width: 100%; height: 100%; display: b
           <label class="tg"><input type="checkbox" id="t-cty" checked><span class="sw" style="background:#3a4c60"></span><span>County lines (when zoomed)</span></label>
         </div>
       </section>
-      <p class="note">Terrain and ocean depth: AWS Terrain Tiles (USGS elevation, NOAA ETOPO1 bathymetry). Roads, cities, rivers: Natural Earth. Snapshot build. Radar: NEXRAD base reflectivity mosaic via Iowa Environmental Mesonet. Model: NCEP HRRR. Alerts: api.weather.gov. Outlooks and reports: <a href="https://www.spc.noaa.gov/" target="_blank" rel="noopener">spc.noaa.gov</a>. Obs: aviationweather.gov.</p>
+      <p class="note">Terrain and ocean depth: AWS Terrain Tiles (USGS elevation, NOAA ETOPO1 bathymetry). Roads, cities, rivers: Natural Earth. Snapshot build. Radar: NEXRAD base reflectivity mosaic via Iowa Environmental Mesonet. Model: NCEP HRRR. Alerts: api.weather.gov. Outlooks and reports: <a href="https://www.spc.noaa.gov/" target="_blank" rel="noopener">spc.noaa.gov</a>. Fronts and pressure: <a href="https://www.wpc.ncep.noaa.gov/basicwx/day0-7loop.html" target="_blank" rel="noopener">WPC</a>. Obs: aviationweather.gov.</p>
     </aside>
 
     <main class="stage">
       <div class="mapwrap" id="mapwrap">
         <canvas id="map" aria-label="Weather map of the contiguous United States"></canvas>
-        <div class="validtag" id="validtag"><div class="k" id="vk">Radar</div><div class="v" id="vv">—</div><div class="s" id="vs"></div></div>
+        <div class="validtag" id="validtag"><div class="k" id="vk">Radar</div><div class="v" id="vv">—</div><div class="s" id="vs"></div><div class="w" id="vw" hidden></div></div>
         <div class="mapbtns">
           <button id="zin" aria-label="Zoom in">+</button>
           <button id="zout" aria-label="Zoom out">−</button>
@@ -402,11 +426,12 @@ const FIELD_ORDER = ["refc", "stp", "mlcape", "sbcape", "srh1", "srh3", "shr6", 
 const S = {
   mode: "radar", field: "stp", frame: 0, playing: false, opacity: .85, spc: "day1otlk_cat",
   satKind: "ir",
-  show: { spc: true, alerts: true, sat: true, obs: true, rpts: true, ww: true, cty: true, roads: true, cities: true, water: true },
+  wpc: "auto",
+  show: { wpc: false, spc: true, alerts: true, sat: true, obs: true, rpts: true, ww: true, cty: true, roads: true, cities: true, water: true },
   base: "terrain",
   t: d3.zoomIdentity, selected: null, chip: "all", filter: "",
 };
-let D = {}, proj, BH, TR = null, imgs = { radar: [], hrrr: {} }, probeCache = {}, paths = {}, fade = 1, lastStep = 0;
+let D = {}, proj, BH, TR = null, WR = null, imgs = { radar: [], hrrr: {}, wpc: [] }, probeCache = {}, paths = {}, fade = 1, lastStep = 0;
 
 // ---------- helpers
 const fmtZ = iso => iso ? iso.slice(11, 16).replace(":", "") + "Z" : "";
@@ -441,6 +466,9 @@ async function boot() {
   const tb = await j("data/base/terrain.json").catch(() => null);
   // Terrain rectangle in base pixels; it bounds panning and zooming so the view never shows empty space.
   if (tb) TR = [(tb.x0 - f.x0) * k, (f.y1 - tb.y1) * k, (tb.x1 - f.x0) * k, (f.y1 - tb.y0) * k];
+  const wb = meta.wpc?.bounds;  // [x0, x1, y0, y1] in Web Mercator meters
+  if (wb) WR = [(wb[0] - f.x0) * k, (f.y1 - wb[3]) * k, (wb[1] - f.x0) * k, (f.y1 - wb[2]) * k];
+  buildWpcUI();
   buildPaths();
   stamps();
   buildFields();
@@ -651,6 +679,12 @@ function draw(now = performance.now()) {
     if (z > 2.2) { ctx.strokeStyle = "rgba(205,190,160,.5)"; ctx.lineWidth = Math.min(1.4, .5 + z * .08) / k; ctx.stroke(paths.roadsMinor); }
     ctx.strokeStyle = "rgba(10,17,25,.55)"; ctx.lineWidth = Math.min(3.6, 1.6 + z * .25) / k; ctx.stroke(paths.roadsMajor);
     ctx.strokeStyle = "rgba(232,170,90,.85)"; ctx.lineWidth = Math.min(2, .8 + z * .15) / k; ctx.stroke(paths.roadsMajor);
+  }
+
+  // WPC fronts and pressure.
+  if (S.show.wpc && WR) {
+    const wi = wpcImg();
+    if (wi) { ctx.imageSmoothingEnabled = true; ctx.drawImage(wi, WR[0], WR[1], WR[2] - WR[0], WR[3] - WR[1]); ctx.imageSmoothingEnabled = k < 3; }
   }
 
   // Watches and mesoscale discussions.
@@ -883,7 +917,49 @@ function legend() {
 $("op").oninput = e => { S.opacity = e.target.value / 100; $("opv").textContent = e.target.value + "%"; draw(); };
 $("satsel").onchange = e => { S.satKind = e.target.value; if (S.satKind !== "ir" && !S.show.sat) { S.show.sat = true; $("t-sat").checked = true; } draw(); };
 $("spcsel").onchange = e => { S.spc = e.target.value; spcKey(); draw(); };
-[["t-roads", "roads"], ["t-cities", "cities"], ["t-water", "water"], ["t-spc", "spc"], ["t-alerts", "alerts"], ["t-sat", "sat"], ["t-obs", "obs"], ["t-rpts", "rpts"], ["t-ww", "ww"], ["t-cty", "cty"]]
+
+// ---------- WPC fronts and pressure
+const wpcFrames = () => D.meta.wpc?.frames || [];
+const wpcLabel = f => new Date(f.valid.replace(/Z$/, ":00Z")).toLocaleString([], { weekday: "short", hour: "numeric", timeZoneName: "short" });
+function buildWpcUI() {
+  const fr = wpcFrames();
+  $("n-wpc").textContent = fr.length || "";
+  if (!fr.length) { $("t-wpc").disabled = true; $("wpcsel").disabled = $("wpcplay").disabled = true; return; }
+  $("wpcsel").innerHTML = `<option value="auto">Match the map's time</option>` + fr.map((f, i) => `<option value="${i}">${esc(wpcLabel(f))} · ${esc(f.label)}</option>`).join("");
+}
+function wpcIndex() {
+  const fr = wpcFrames(); if (!fr.length) return -1;
+  if (S.wpc !== "auto") return +S.wpc;
+  // Match the time on screen: the HRRR hour, or now for radar.
+  const f = frameList()[S.frame];
+  const t = S.mode === "hrrr" && f ? Date.parse(f.valid.replace(/Z$/, ":00Z")) : Date.now();
+  let best = 0, bd = Infinity;
+  fr.forEach((w, i) => { const d = Math.abs(Date.parse(w.valid.replace(/Z$/, ":00Z")) - t); if (d < bd) { bd = d; best = i; } });
+  return best;
+}
+function wpcImg() {
+  const i = wpcIndex(); if (i < 0) return null;
+  const f = wpcFrames()[i];
+  $("vw").hidden = false; $("vw").textContent = `Fronts: ${wpcLabel(f)} · WPC ${f.label.toLowerCase()}`;
+  if (imgs.wpc[i] !== undefined) return imgs.wpc[i];
+  imgs.wpc[i] = null;
+  loadImg(`${f.src}?v=${D.meta.built}`).then(im => { imgs.wpc[i] = im; draw(); });
+  return null;
+}
+let wpcTimer = null;
+function wpcAnimate(on) {
+  $("wpcplay").setAttribute("aria-pressed", on); $("wpcplay").textContent = on ? "❚❚" : "▶";
+  clearInterval(wpcTimer); wpcTimer = null;
+  if (!on) return;
+  if (!S.show.wpc) { S.show.wpc = true; $("t-wpc").checked = true; }
+  wpcFrames().forEach((_, i) => { if (imgs.wpc[i] === undefined) { imgs.wpc[i] = null; loadImg(`${wpcFrames()[i].src}?v=${D.meta.built}`).then(im => { imgs.wpc[i] = im; }); } });
+  let i = S.wpc === "auto" ? wpcIndex() : +S.wpc;
+  wpcTimer = setInterval(() => { i = (i + 1) % wpcFrames().length; S.wpc = String(i); $("wpcsel").value = S.wpc; draw(); }, reduceMotion ? 2200 : 1100);
+}
+$("wpcsel").onchange = e => { wpcAnimate(false); S.wpc = e.target.value; if (!S.show.wpc) { S.show.wpc = true; $("t-wpc").checked = true; } draw(); };
+$("wpcplay").onclick = () => wpcAnimate(!wpcTimer);
+$("t-wpc").addEventListener("change", e => { if (!e.target.checked) { wpcAnimate(false); $("vw").hidden = true; } });
+[["t-wpc", "wpc"], ["t-roads", "roads"], ["t-cities", "cities"], ["t-water", "water"], ["t-spc", "spc"], ["t-alerts", "alerts"], ["t-sat", "sat"], ["t-obs", "obs"], ["t-rpts", "rpts"], ["t-ww", "ww"], ["t-cty", "cty"]]
   .forEach(([id, k]) => $(id).onchange = e => { S.show[k] = e.target.checked; draw(); kick(); });
 
 function spcKey() {

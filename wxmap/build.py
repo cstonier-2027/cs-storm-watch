@@ -19,7 +19,7 @@ import urllib.request
 
 import eccodes
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageFilter
 
 import forecast
 
@@ -263,6 +263,95 @@ FIELDS = [  # (key in idx line, short name)
 ]
 
 
+# ---------------------------------------------------------------- WPC fronts and pressure
+# WPC's Google Earth overlays: transparent PNGs on a lat/lon grid with isobars, fronts and H/L centers.
+# Only the forecast charts are used: the analysis chart also carries every station plot, which is unreadable here.
+WPC_URL = "https://www.wpc.ncep.noaa.gov/kml/conus_png/"
+WPC_BOX = (-130.08, -64.06, 14.88, 58.79)   # west, east, south, north (from the KML LatLonBox)
+WPC_FRAMES = ([(f"9{c}f_trans_CED", "hr", h) for c, h in zip("12345689", (6, 12, 18, 24, 30, 36, 48, 60))] +
+              [(f"9{c}h_trans_CED", "day", d) for c, d in zip("jklmn", (3, 4, 5, 6, 7))])
+WPC_H = 900  # output height; width follows the Mercator aspect
+
+
+def wpc_valid(kind, n, issued):
+    if kind == "hr":    # short-range charts count hours from the 00Z or 12Z cycle they were issued from
+        return issued.replace(hour=issued.hour // 12 * 12, minute=0, second=0, microsecond=0) + dt.timedelta(hours=n)
+    return issued.replace(hour=12, minute=0, second=0, microsecond=0) + dt.timedelta(days=n)  # Day N: 12Z
+
+
+def wpc_style(img):
+    """Recolor WPC's chart colors for a dark map, drop the label box and logo, and add a dark halo."""
+    a = np.asarray(img.convert("RGBA")).copy()
+    h, w = a.shape[:2]
+    sy, sx = h / 931, w / 1400
+    a[int(770 * sy):, :int(430 * sx), 3] = 0          # issued/valid label box
+    a[int(800 * sy):, int(1260 * sx):, 3] = 0         # NOAA logo
+    r, g, b = (a[..., i].astype(int) for i in range(3))
+    on = a[..., 3] > 0
+    pink = on & (r > 200) & (g > 150) & (b > 140)     # faint label text
+    a[pink, 3] = 0
+    green = on & (g > 150) & (r < 120) & (b < 120)    # isobars and their labels
+    tc = np.zeros_like(green)
+    tc[int(740 * sy):int(805 * sy), int(715 * sx):int(1000 * sx)] = True
+    a[green & tc, 3] = 0                               # "latest tropical cyclone advisory" disclaimer
+    a[green, :3] = (226, 236, 246)
+    blue = on & (b > 150) & (r < 90) & (g < 120)      # highs and cold fronts
+    a[blue, :3] = (90, 170, 255)
+    red = on & (r > 180) & (g < 90) & (b < 90)        # lows and warm fronts
+    a[red, :3] = (255, 80, 80)
+    out = Image.fromarray(a, "RGBA")
+    # Thicken isobars a little so they read on a phone; fronts and letters draw on top unchanged.
+    iso = Image.fromarray((green & ~tc).astype(np.uint8) * 255, "L").filter(ImageFilter.MaxFilter(3))
+    thick = Image.new("RGBA", out.size, (226, 236, 246, 0))
+    thick.putalpha(iso.point(lambda v: 210 if v else 0))
+    thick.alpha_composite(out)
+    out = thick
+    halo = out.getchannel("A").filter(ImageFilter.MaxFilter(3))
+    base = Image.new("RGBA", out.size, (8, 14, 22, 0))
+    base.putalpha(halo.point(lambda v: int(v * .75)))
+    base.alpha_composite(out)
+    return base
+
+
+def wpc_reproject(img):
+    """WPC overlays are on an equal-angle lat/lon grid; resample rows onto Web Mercator."""
+    west, east, south, north = WPC_BOX
+    ym0, ym1 = R * math.log(math.tan(math.pi / 4 + math.radians(south) / 2)), R * math.log(math.tan(math.pi / 4 + math.radians(north) / 2))
+    xm0, xm1 = math.radians(west) * R, math.radians(east) * R
+    out_h = WPC_H
+    out_w = int(round(out_h * (xm1 - xm0) / (ym1 - ym0)))
+    src = np.asarray(img.resize((out_w, img.height), Image.NEAREST))
+    ym = ym1 - (np.arange(out_h) + .5) * (ym1 - ym0) / out_h
+    lat = np.degrees(2 * np.arctan(np.exp(ym / R)) - np.pi / 2)
+    rows = np.clip(((north - lat) / (north - south) * img.height).astype(int), 0, img.height - 1)
+    return Image.fromarray(src[rows], "RGBA"), (xm0, xm1, ym0, ym1)
+
+
+def build_wpc(now):
+    os.makedirs(os.path.join(OUT, "wpc"), exist_ok=True)
+    frames, bounds = [], None
+    for name, kind, n in WPC_FRAMES:
+        try:
+            req = urllib.request.Request(WPC_URL + name + ".png", headers={"User-Agent": UA})
+            with urllib.request.urlopen(req, timeout=60) as r:
+                raw, lm = r.read(), r.headers.get("Last-Modified")
+            issued = dt.datetime.strptime(lm, "%a, %d %b %Y %H:%M:%S GMT")
+        except Exception as e:
+            print("FAILED wpc", name, repr(e))
+            continue
+        valid = wpc_valid(kind, n, issued)
+        if valid < now - dt.timedelta(hours=3):
+            continue  # only charts valid now or later
+        img, bounds = wpc_reproject(wpc_style(Image.open(io.BytesIO(raw))))
+        fn = f"wpc/wpc_{len(frames):02d}.png"
+        img.save(os.path.join(OUT, fn), optimize=True)
+        frames.append({"src": "data/" + fn, "kind": kind, "valid": valid.strftime("%Y-%m-%dT%H:%MZ"),
+                       "issued": issued.strftime("%Y-%m-%dT%H:%MZ"),
+                       "label": f"{n}-hour forecast" if kind == "hr" else f"Day {n}"})
+    frames.sort(key=lambda f: f["valid"])
+    return {"bounds": bounds, "frames": frames} if frames else None
+
+
 def latest_hrrr_cycle(now):
     for back in range(1, 6):
         c = now - dt.timedelta(hours=back)
@@ -460,7 +549,7 @@ def build_hrrr(now):
 def main():
     os.makedirs(OUT, exist_ok=True)
     # Start clean so nothing from an earlier run (past radar scans, old model hours) is published.
-    for sub in ("radar", "hrrr", "sat"):
+    for sub in ("radar", "hrrr", "sat", "wpc"):
         d = os.path.join(OUT, sub)
         if os.path.isdir(d):
             for fn in os.listdir(d):
@@ -472,7 +561,7 @@ def main():
         jobs = {"alerts": ex.submit(build_alerts), "spc": ex.submit(build_spc),
                 "reports": ex.submit(build_reports), "metars": ex.submit(build_metars),
                 "wm": ex.submit(build_watches_mds), "radar": ex.submit(build_radar, now),
-                "sat": ex.submit(build_satellite, now)}
+                "sat": ex.submit(build_satellite, now), "wpc": ex.submit(build_wpc, now)}
         hrrr = build_hrrr(now)
         res = {}
         for k, j in jobs.items():
@@ -490,6 +579,7 @@ def main():
     save("mds.json", json.dumps(m, separators=(",", ":")))
     meta["radar"] = res["radar"] or []
     meta["sat"] = res["sat"] or []
+    meta["wpc"] = res["wpc"]
     hour_stats = [h.pop("fc", None) for h in hrrr["hours"]]
     cpx = hrrr.pop("_cpx", [])
     try:
