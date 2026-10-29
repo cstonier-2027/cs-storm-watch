@@ -418,6 +418,8 @@ def build_hrrr(now):
     pvalid = valid[PROBE // 2::PROBE, PROBE // 2::PROBE][:PH, :PW]
     with open(os.path.join(OUT, "states-10m.json")) as fh:
         st, names = forecast.state_raster(json.load(fh), (X0, X1, Y0, Y1), W, H)
+    with open(os.path.join(OUT, "base", "cities.json")) as fh:
+        cpx = forecast.city_pixels(json.load(fh), (X0, X1, Y0, Y1), W, H)
 
     def one(fh):
         done = os.path.join(OUT, "hrrr", f"summary_{cycle:%Y%m%d%H}_f{fh:02d}.json")
@@ -440,7 +442,7 @@ def build_hrrr(now):
             v = np.where(pvalid, d[k][pj, pi] * PROBE_SCALE[k], -32768)
             buf += np.clip(np.rint(v), -32768, 32767).astype("<i2").tobytes()
         save(f"hrrr/probe_h{fh - start:02d}.txt", base64.b64encode(gzip.compress(bytes(buf), 9)).decode())  # artifacts serve text, not .bin
-        fc = forecast.hour_stats(d, jj, ii, valid, st, names, (X0, X1, Y0, Y1), PROBE)
+        fc = forecast.hour_stats(d, jj, ii, valid, st, names, (X0, X1, Y0, Y1), PROBE, cpx)
         mx = fc["mx"]  # US only, so storms over Mexico or the Gulf don't dominate
         print("f%02d" % fh, {k: round(v, 1) for k, v in mx.items()})
         res = {"fh": fh, "valid": (cycle + dt.timedelta(hours=fh)).strftime("%Y-%m-%dT%H:%MZ"), "max": mx, "fc": fc}
@@ -450,7 +452,7 @@ def build_hrrr(now):
     os.makedirs(os.path.join(OUT, "hrrr"), exist_ok=True)
     with cf.ThreadPoolExecutor(2) as ex:
         hours = sorted((h for h in ex.map(one, fhs) if h), key=lambda h: h["fh"])
-    return {"cycle": cycle.strftime("%Y-%m-%dT%H:%MZ"), "hours": hours, "layers": LAYERS,
+    return {"cycle": cycle.strftime("%Y-%m-%dT%H:%MZ"), "hours": hours, "layers": LAYERS, "_cpx": cpx,
             "probeScale": PROBE_SCALE, "probe": [PW, PH],
             "scales": {k: SCALES[k] for k in RASTER}}
 
@@ -489,6 +491,11 @@ def main():
     meta["radar"] = res["radar"] or []
     meta["sat"] = res["sat"] or []
     hour_stats = [h.pop("fc", None) for h in hrrr["hours"]]
+    cpx = hrrr.pop("_cpx", [])
+    try:
+        save("places.json", json.dumps(forecast.places(cpx, hrrr, hour_stats), separators=(",", ":")))
+    except Exception as e:
+        print("FAILED places", repr(e))
     meta["hrrr"] = hrrr
     try:
         with open(os.path.join(OUT, "base", "cities.json")) as fh:

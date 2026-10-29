@@ -108,7 +108,24 @@ def pixel_lonlat(frame, w, h, x, y):
 
 
 # ---------------------------------------------------------------- per-hour model stats
-def hour_stats(d, jj, ii, valid, st, names, frame, probe):
+CITY_VARS = {"t2": 0, "td2": 0, "refc": 0, "mlcape": 0, "stp": 1, "uh": 0, "srh1": 0, "shr6": 0}  # value: decimals
+
+
+def city_pixels(cities, frame, w, h):
+    """US cities that fall inside the model frame, with their pixel on the model grid."""
+    x0, x1, y0, y1 = frame
+    out = []
+    for c in cities:
+        if c.get("c") != "USA" or c.get("st") not in ABBR:
+            continue
+        x = int((math.radians(c["lon"]) * R - x0) / (x1 - x0) * w)
+        y = int((y1 - R * math.log(math.tan(math.pi / 4 + math.radians(c["lat"]) / 2))) / (y1 - y0) * h)
+        if 0 <= x < w and 0 <= y < h:
+            out.append((c, y, x))
+    return out
+
+
+def hour_stats(d, jj, ii, valid, st, names, frame, probe, cpx=()):
     """Compact, JSON-safe numbers for one HRRR hour, restricted to the US."""
     h, w = st.shape
     us = (st > 0) & valid
@@ -137,7 +154,26 @@ def hour_stats(d, jj, ii, valid, st, names, frame, probe):
         mx = np.full(len(names) + 1, -999.0)
         np.maximum.at(mx, st[us], v[k][us])
         out[k] = {names[i - 1]: round(float(mx[i]), 1) for i in range(1, len(names) + 1) if mx[i] > -999}
+    # Point values at each city for the place panel.
+    ys = np.array([y for _, y, _ in cpx], int)
+    xs = np.array([x for _, _, x in cpx], int)
+    out["city"] = {}
+    for k, nd in CITY_VARS.items():
+        if len(ys) == 0:
+            break
+        vals = d[k][jj[ys, xs], ii[ys, xs]]
+        ok = valid[ys, xs]
+        out["city"][k] = [None if not (o and np.isfinite(v)) else round(float(v), nd) if nd else int(round(float(v)))
+                          for v, o in zip(vals, ok)]
     return out
+
+
+def places(cpx, hrrr, hours_stats):
+    """Per-city HRRR series for the place panel: vars[k][city] = values by forecast hour."""
+    hs = [(h, s) for h, s in zip(hrrr.get("hours", []), hours_stats) if s and "city" in s]
+    return {"hours": [h["valid"] for h, _ in hs],
+            "cities": [[c["n"], ABBR[c["st"]], c["lat"], c["lon"]] for c, _, _ in cpx],
+            "vars": {k: [[s["city"][k][i] for _, s in hs] for i in range(len(cpx))] for k in CITY_VARS}}
 
 
 # ---------------------------------------------------------------- text helpers

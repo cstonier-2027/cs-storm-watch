@@ -156,6 +156,35 @@ canvas#map { position: absolute; inset: 0; width: 100%; height: 100%; display: b
 .summary b { display: block; font: 600 22px/1 var(--f-display); font-variant-numeric: tabular-nums; }
 .summary span { font: 10.5px var(--f-mono); color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em; }
 .note { font-size: 12px; color: var(--ink-3); }
+/* Place panel: one city's outlook from the map data plus the NWS 7-day forecast. */
+.find input { width: 100%; background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 9px 11px; font-size: 14px; }
+.find input::placeholder { color: var(--ink-3); }
+.place { border: 1px solid var(--line); border-top: 3px solid var(--accent); border-radius: 6px; background: var(--panel-2); padding: 12px; display: grid; gap: 12px; }
+.phead { display: flex; align-items: start; justify-content: space-between; gap: 8px; }
+.phead h3 { margin: 0; font: 600 22px/1.1 var(--f-display); letter-spacing: .02em; }
+.phead .x { border: 1px solid var(--line); background: transparent; border-radius: 6px; width: 30px; height: 30px; cursor: pointer; flex: none; }
+.psub { font: 11px var(--f-mono); color: var(--ink-3); margin-top: 3px; }
+.place h4 { margin: 0 0 6px; font: 600 12px var(--f-display); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-2); }
+.place ul { margin: 0; padding-left: 16px; display: grid; gap: 4px; font-size: 13px; color: var(--ink-2); }
+.pal { display: flex; flex-wrap: wrap; gap: 6px; }
+.pal button { border: 1px solid var(--c); color: var(--ink); background: transparent; border-radius: 999px; padding: 3px 10px; font-size: 12px; cursor: pointer; }
+.hrly { display: grid; grid-auto-flow: column; grid-auto-columns: 42px; overflow-x: auto; gap: 2px; padding-bottom: 4px; scrollbar-width: thin; }
+.hrly div { display: grid; gap: 3px; justify-items: center; font: 11px var(--f-mono); color: var(--ink-2); background: var(--panel); border-radius: 4px; padding: 5px 0; }
+.hrly b { font: 600 14px var(--f-display); color: var(--ink); }
+.hrly i { width: 12px; height: 12px; border-radius: 3px; background: var(--c, transparent); border: 1px solid var(--line); }
+.hrly .stp { color: var(--watch); }
+.hkey { font: 10.5px var(--f-mono); color: var(--ink-3); margin-top: 4px; }
+.nws { display: grid; gap: 2px; }
+.nws details { background: var(--panel); border-radius: 4px; }
+.nws summary { list-style: none; display: grid; grid-template-columns: 74px 44px minmax(0,1fr) 38px; gap: 8px; align-items: center; padding: 7px 8px; cursor: pointer; font-size: 12.5px; }
+.nws summary::-webkit-details-marker { display: none; }
+.nws summary b { font: 600 12.5px var(--f-body); color: var(--ink); }
+.nws summary .t { font: 600 16px var(--f-display); text-align: right; }
+.nws summary .t.lo { color: #8fc3ff; }
+.nws summary .t.hi { color: #ffb36b; }
+.nws summary span { color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nws summary em { font: 11px var(--f-mono); font-style: normal; color: #7fc8ff; text-align: right; }
+.nws p { margin: 0; padding: 0 8px 8px; font-size: 12.5px; color: var(--ink-2); }
 /* Forecast card: written by forecast.py on every refresh. */
 .fcard { --lv: var(--ink-3); border: 1px solid var(--line); border-left: 4px solid var(--lv); border-radius: 6px; background: var(--panel-2); padding: 10px 12px; display: grid; gap: 8px; }
 .fcard .fhead { font: 600 19px/1.15 var(--f-display); letter-spacing: .02em; color: var(--ink); }
@@ -287,6 +316,11 @@ canvas#map { position: absolute; inset: 0; width: 100%; height: 100%; display: b
     </main>
 
     <aside class="rail right" aria-label="Active hazards">
+      <section class="sec find">
+        <input id="cityq" type="search" list="citylist" placeholder="Find a city for its forecast…" autocomplete="off" aria-label="Find a city">
+        <datalist id="citylist"></datalist>
+      </section>
+      <section class="sec" id="placesec" hidden><div class="place" id="place" aria-live="polite"></div></section>
       <section class="sec" id="fcsec" hidden>
         <h2>Forecast <small id="fc-when"></small></h2>
         <div class="fcard" id="fcard">
@@ -399,6 +433,7 @@ async function boot() {
   if (!Array.isArray(meta.sat)) meta.sat = [];
   D = { meta, states, counties, alerts, spc, reports, metars, watches, mds, roads, cities, lakes, rivers, neighbors };
   buildForecastUI();
+  buildPlaces();
   imgs.terrain = loadImg("data/base/terrain.jpg").then(i => { imgs.terrain = i; draw(); });
   const f = meta.frame, k = BW / (f.x1 - f.x0);
   BH = Math.round((f.y1 - f.y0) * k);
@@ -649,7 +684,8 @@ function draw(now = performance.now()) {
   const sx = x => t.x + x * k, sy = y => t.y + y * k;
   if (S.show.obs) drawObs(sx, sy, k);
   if (S.show.rpts) drawReports(sx, sy, k);
-  if (S.show.cities) drawCities(sx, sy, k);
+  if (S.show.cities) drawCities(sx, sy, k); else drawn = [];
+  if (S.place) drawPlace(sx, sy);
   if (S.hover) { ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(S.hover[0], S.hover[1], 5, 0, 7); ctx.stroke(); }
 }
 
@@ -715,7 +751,7 @@ function drawBarb(x, y, dir, spd, L) {
 function drawCities(sx, sy, k) {
   const z = k / homeT().k;
   const minPop = z < 1.3 ? 900000 : z < 2 ? 350000 : z < 3.5 ? 120000 : z < 6 ? 40000 : 0;
-  const boxes = [];
+  const boxes = []; drawn = [];
   ctx.textBaseline = "middle"; ctx.textAlign = "left";
   for (const c of D.cities) {
     if (c.pop < minPop && !(c.cap === 1 || (c.cap === 2 && z > 1.6))) continue;
@@ -724,7 +760,7 @@ function drawCities(sx, sy, k) {
     ctx.font = `${big ? 600 : 500} ${big ? 12.5 : 11.5}px 'IBM Plex Sans', system-ui, sans-serif`;
     const w = ctx.measureText(c.n).width, bx = [x - 4, y - 8, x + 8 + w, y + 8];
     if (boxes.some(b => bx[0] < b[2] && bx[2] > b[0] && bx[1] < b[3] && bx[3] > b[1])) continue;
-    boxes.push(bx);
+    boxes.push(bx); drawn.push({ c, bx });
     ctx.fillStyle = "#f2f4f7"; ctx.strokeStyle = "#0a1119"; ctx.lineWidth = 1.5;
     ctx.beginPath(); c.cap ? ctx.rect(x - 3, y - 3, 6, 6) : ctx.arc(x, y, big ? 3.2 : 2.5, 0, 7); ctx.fill(); ctx.stroke();
     ctx.lineWidth = 3; ctx.strokeStyle = "rgba(10,17,25,.85)"; ctx.strokeText(c.n, x + 6, y);
@@ -886,6 +922,177 @@ $("fcbtn").onclick = () => {
   r.classList.toggle("show", on); $("fcbtn").setAttribute("aria-pressed", on);
 };
 
+// ---------- place panel (click a city or search)
+let drawn = [], PL = null;
+const NWS_CACHE = {};
+async function buildPlaces() {
+  PL = await j("data/places.json").catch(() => null);
+  const list = PL ? PL.cities.map(([n, st]) => `${n}, ${st}`) : D.cities.filter(c => c.c === "USA").map(c => c.n);
+  $("citylist").innerHTML = [...new Set(list)].sort().map(n => `<option value="${esc(n)}">`).join("");
+  $("cityq").addEventListener("change", e => {
+    const q = e.target.value.trim().toLowerCase(); if (!q) return;
+    const i = PL ? PL.cities.findIndex(([n, st]) => `${n}, ${st}`.toLowerCase() === q || n.toLowerCase() === q) : -1;
+    if (i >= 0) { const [n, st, lat, lon] = PL.cities[i]; selectPlace({ n, abbr: st, lat, lon }, true); e.target.blur(); }
+  });
+}
+function placeIndex(lat, lon, name) {
+  if (!PL) return -1;
+  return PL.cities.findIndex(([n, , la, lo]) => (!name || n === name) && Math.abs(la - lat) < 1e-3 && Math.abs(lo - lon) < 1e-3);
+}
+function nearestPlace(lon, lat, km) {
+  if (!PL) return null;
+  let best = -1, bd = Infinity;
+  PL.cities.forEach(([, , la, lo], i) => { const d = Math.hypot((lo - lon) * Math.cos(lat * Math.PI / 180), la - lat) * 111; if (d < bd) { bd = d; best = i; } });
+  if (best < 0 || bd > km) return null;
+  const [n, st, la, lo] = PL.cities[best]; return { n, abbr: st, lat: la, lon: lo };
+}
+function pip(x, y, ring) {
+  let inside = false;
+  for (let i = 0, k = ring.length - 1; i < ring.length; k = i++) {
+    const [x1, y1] = ring[i], [x2, y2] = ring[k];
+    if ((y1 > y) !== (y2 > y) && x < (x2 - x1) * (y - y1) / (y2 - y1) + x1) inside = !inside;
+  }
+  return inside;
+}
+function inGeom(g, lon, lat) {
+  if (!g) return false;
+  const polys = g.type === "MultiPolygon" ? g.coordinates : g.type === "Polygon" ? [g.coordinates] : [];
+  return polys.some(p => pip(lon, lat, p[0]) && !p.slice(1).some(h => pip(lon, lat, h)));
+}
+const CAT_ORDER = ["TSTM", "MRGL", "SLGT", "ENH", "MDT", "HIGH"];
+const CAT_WORDS = { TSTM: "General thunderstorms", MRGL: "Marginal risk (1 of 5)", SLGT: "Slight risk (2 of 5)", ENH: "Enhanced risk (3 of 5)", MDT: "Moderate risk (4 of 5)", HIGH: "High risk (5 of 5)" };
+function spcAt(key, lon, lat) {
+  let best = null, valid = null;
+  for (const f of D.spc[key]?.features || []) {
+    valid = valid || f.properties.VALID;
+    const lab = f.properties.LABEL;
+    if (CAT_ORDER.includes(lab) && inGeom(f.geometry, lon, lat) && (!best || CAT_ORDER.indexOf(lab) > CAT_ORDER.indexOf(best))) best = lab;
+  }
+  return { cat: best, valid };
+}
+function probAt(key, lon, lat) {
+  let best = 0;
+  for (const f of D.spc[key]?.features || []) { const v = parseFloat(f.properties.LABEL); if (v > best && inGeom(f.geometry, lon, lat)) best = v; }
+  return best;
+}
+function spcDay(valid) {
+  if (!valid) return "";
+  const t = new Date(Date.UTC(+valid.slice(0, 4), +valid.slice(4, 6) - 1, +valid.slice(6, 8), +valid.slice(8, 10)));
+  return t.toLocaleDateString([], { weekday: "long" });
+}
+const hourLabel = iso => new Date(iso).toLocaleTimeString([], { hour: "numeric" }).replace(":00", "").replace(/\s?([AP])M/i, (_, a) => a.toLowerCase());
+function refcColor(v) {
+  const sc = D.meta.hrrr?.scales?.refc || []; let c = null;
+  for (const [lo, col] of sc) if (v >= lo) c = col;
+  return c;
+}
+function windows(hours, ok) {
+  const out = []; let start = null;
+  hours.forEach((h, i) => { if (ok(i) && start == null) start = i; if ((!ok(i) || i === hours.length - 1) && start != null) { out.push([start, ok(i) ? i : i - 1]); start = null; } });
+  return out;
+}
+
+function selectPlace(c, zoom) {
+  const lat = c.lat, lon = c.lon, abbr = c.abbr || null;
+  const pi = placeIndex(lat, lon, c.n);
+  const st = abbr || (pi >= 0 ? PL.cities[pi][1] : (c.c === "USA" ? c.st : null));
+  const p = proj([lon, lat]);
+  S.place = { n: c.n, st, lat, lon, x: p[0], y: p[1], pi };
+  if (zoom) zoomToBounds([[p[0] - 60, p[1] - 40], [p[0] + 60, p[1] + 40]]);
+  renderPlace();
+  $("placesec").hidden = false;
+  document.querySelector(".rail.right").classList.add("show");
+  $("placesec").scrollIntoView({ block: "start", behavior: reduceMotion ? "auto" : "smooth" });
+  draw();
+}
+function drawPlace(sx, sy) {
+  const x = sx(S.place.x), y = sy(S.place.y);
+  ctx.strokeStyle = "#5cc8ff"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(x, y, 9, 0, 7); ctx.stroke();
+  ctx.strokeStyle = "rgba(10,17,25,.9)"; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(x, y, 11, 0, 7); ctx.stroke();
+}
+
+function renderPlace() {
+  const P = S.place, el = $("place");
+  const head = `<div class="phead"><div><h3>${esc(P.n)}${P.st ? ", " + esc(P.st) : ""}</h3>
+    <div class="psub">${Math.abs(P.lat).toFixed(2)}°${P.lat >= 0 ? "N" : "S"} ${Math.abs(P.lon).toFixed(2)}°${P.lon < 0 ? "W" : "E"}<span id="p-office"></span></div></div>
+    <button class="x" id="pclose" aria-label="Close">✕</button></div>`;
+  if (P.pi < 0) {
+    el.innerHTML = head + `<p class="note">Forecasts are available for US cities. Try a city in the United States.</p>`;
+    $("pclose").onclick = closePlace; return;
+  }
+  // Alerts covering this spot.
+  const cty = countyAt(P.x, P.y);
+  const here = D.alerts.filter(a => (a.poly && a.path && inPath(a.path, P.x, P.y)) || (cty && a.fips.includes(cty.id)))
+    .filter(a => !/Small Craft|Gale|Marine|Hazardous Seas/.test(a.event));
+  const al = here.length ? `<div><h4>Alerts here now</h4><div class="pal">${here.map(a => `<button style="--c:${a.color}" data-i="${D.alerts.indexOf(a)}">${esc(a.event)}${a.ends ? " · until " + fmtDate(a.ends) : ""}</button>`).join("")}</div></div>` : "";
+
+  // SPC by day at this point.
+  const spc = [];
+  for (const [key, day] of [["day1otlk_cat", "Today"], ["day2otlk_cat", null], ["day3otlk_cat", null]]) {
+    const r = spcAt(key, P.lon, P.lat);
+    const name = day || spcDay(r.valid);
+    spc.push(`<li><b>${esc(name)}:</b> ${r.cat ? CAT_WORDS[r.cat] : "No thunderstorms expected"}${key === "day1otlk_cat" && r.cat && r.cat !== "TSTM" ? probText(P) : ""}</li>`);
+  }
+
+  // Next hours from the HRRR.
+  const V = PL.vars, i = P.pi, H = PL.hours, val = k => V[k][i];
+  const ok = arr => arr.some(v => v != null);
+  const bullets = [];
+  let strip = "";
+  if (H.length && ok(val("t2"))) {
+    const t = val("t2").filter(v => v != null), td = val("td2"), rc = val("refc"), cape = val("mlcape"), stp = val("stp"), uh = val("uh");
+    const end = hourLabel(H[H.length - 1]);
+    bullets.push(`Temperatures ${Math.min(...t)}–${Math.max(...t)}°F through ${end}.`);
+    const wet = windows(H, k => (rc[k] ?? -99) >= 30);
+    const peakRc = Math.max(...rc.map(v => v ?? -99));
+    if (wet.length) bullets.push(`${peakRc >= 50 ? "Storms" : "Rain"} likely ${wet.slice(0, 3).map(([a, b]) => a === b ? "around " + hourLabel(H[a]) : hourLabel(H[a]) + "–" + hourLabel(H[b])).join(", ")} (radar up to ${peakRc} dBZ${peakRc >= 50 ? ", heavy" : ""}).`);
+    else bullets.push(`No rain in the model through ${end}.`);
+    const iStp = stp.indexOf(Math.max(...stp.map(v => v ?? 0))), iUh = uh.indexOf(Math.max(...uh.map(v => v ?? 0)));
+    if ((stp[iStp] ?? 0) >= 1) bullets.push(`Tornado ingredients (STP ${stp[iStp].toFixed(1)}) around ${hourLabel(H[iStp])}.`);
+    if ((uh[iUh] ?? 0) >= 75) bullets.push(`The model shows a rotating storm here around ${hourLabel(H[iUh])}.`);
+    const mc = Math.max(...cape.map(v => v ?? 0));
+    if (mc >= 1000 && (stp[iStp] ?? 0) < 1) bullets.push(`Unstable air (CAPE up to ${mc.toLocaleString()} J/kg) if storms form.`);
+    const mtd = Math.max(...td.map(v => v ?? -99));
+    if (mtd >= 65) bullets.push(`Humid: dewpoints near ${mtd}°F.`);
+    strip = `<div class="hrly">${H.map((h, k) => `<div><span>${hourLabel(h)}</span><b>${val("t2")[k] ?? "–"}°</b><i style="--c:${(rc[k] ?? -99) >= 5 ? refcColor(rc[k]) : "transparent"}" title="${rc[k] ?? ""} dBZ"></i>${(stp[k] ?? 0) >= 0.5 ? `<span class="stp">${stp[k].toFixed(1)}</span>` : "<span>&nbsp;</span>"}</div>`).join("")}</div>
+      <div class="hkey">Hourly temperature · radar color · STP shown when 0.5+ · HRRR ${esc(fmtDate(D.meta.hrrr.cycle))} run</div>`;
+  }
+
+  el.innerHTML = head + al + `
+    <div><h4>Severe weather outlook (SPC)</h4><ul>${spc.join("")}</ul></div>
+    ${bullets.length ? `<div><h4>Next ${H.length} hours (HRRR model)</h4><ul>${bullets.map(b => `<li>${esc(b)}</li>`).join("")}</ul></div>${strip}` : ""}
+    <div><h4>7-day forecast (NWS)</h4><div class="nws" id="nws"><p class="note">Loading the National Weather Service forecast…</p></div></div>`;
+  $("pclose").onclick = closePlace;
+  el.querySelectorAll(".pal button").forEach(b => b.onclick = () => select(D.alerts[+b.dataset.i], true));
+  loadNws(P);
+}
+function probText(P) {
+  const parts = [["day1otlk_torn", "tornado"], ["day1otlk_wind", "wind"], ["day1otlk_hail", "hail"]]
+    .map(([k, w]) => [probAt(k, P.lon, P.lat), w]).filter(([v]) => v > 0).map(([v, w]) => `${Math.round(v * 100)}% ${w}`);
+  return parts.length ? ` — ${parts.join(", ")}` : "";
+}
+function closePlace() { S.place = null; $("placesec").hidden = true; draw(); }
+
+async function loadNws(P) {
+  const key = P.lat.toFixed(3) + "," + P.lon.toFixed(3);
+  try {
+    if (!NWS_CACHE[key]) NWS_CACHE[key] = (async () => {
+      const pt = await fetch(`https://api.weather.gov/points/${P.lat.toFixed(4)},${P.lon.toFixed(4)}`).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+      const fc = await fetch(pt.properties.forecast).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+      return { office: pt.properties.cwa, periods: fc.properties.periods || [] };
+    })();
+    const r = await NWS_CACHE[key];
+    if (S.place !== P) return;  // the user moved on
+    $("p-office").textContent = ` · NWS ${r.office}`;
+    $("nws").innerHTML = r.periods.slice(0, 14).map((d, k) => `<details${k === 0 ? " open" : ""}><summary><b>${esc(d.name)}</b><span class="t ${d.isDaytime ? "hi" : "lo"}">${d.temperature}°</span><span>${esc(d.shortForecast)}</span><em>${d.probabilityOfPrecipitation?.value ? d.probabilityOfPrecipitation.value + "%" : ""}</em></summary><p>${esc(d.detailedForecast)}</p></details>`).join("")
+      || `<p class="note">No forecast periods returned.</p>`;
+  } catch (e) {
+    delete NWS_CACHE[key];
+    if (S.place !== P) return;
+    $("nws").innerHTML = `<p class="note">The NWS forecast didn't load (${esc(e.message)}). <a href="https://forecast.weather.gov/MapClick.php?lat=${P.lat}&lon=${P.lon}" target="_blank" rel="noopener">Open it on weather.gov</a>.</p>`;
+  }
+}
+
 // ---------- alerts panel
 function visibleAlerts() {
   const q = S.filter.toLowerCase();
@@ -975,11 +1182,21 @@ function nearestObs(mx, my) { if (!S.show.obs) return null; let best = null, bd 
 function nearestReport(mx, my) { if (!S.show.rpts) return null; let best = null, bd = 100; for (const o of D.reports) { const dx = S.t.x + o.x * S.t.k - mx, dy = S.t.y + o.y * S.t.k - my, d = dx * dx + dy * dy; if (d < bd) { bd = d; best = o; } } return best; }
 
 canvas.addEventListener("click", e => {
-  const r = canvas.getBoundingClientRect(), bx = (e.clientX - r.left - S.t.x) / S.t.k, by = (e.clientY - r.top - S.t.y) / S.t.k;
-  if (!S.show.alerts) return;
-  const c = countyAt(bx, by);
-  const hit = D.alerts.filter(a => visibleAlerts().includes(a)).find(a => (a.poly && a.path && inPath(a.path, bx, by)) || (c && a.fips.includes(c.id)));
-  select(hit || null, false);
+  const r = canvas.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+  const bx = (mx - S.t.x) / S.t.k, by = (my - S.t.y) / S.t.k;
+  // A city dot or label: open that city's forecast.
+  const city = drawn.find(d => mx >= d.bx[0] - 6 && mx <= d.bx[2] + 2 && my >= d.bx[1] - 4 && my <= d.bx[3] + 4);
+  if (city) { selectPlace(city.c); return; }
+  if (S.show.alerts) {
+    const c = countyAt(bx, by);
+    const hit = D.alerts.filter(a => visibleAlerts().includes(a)).find(a => (a.poly && a.path && inPath(a.path, bx, by)) || (c && a.fips.includes(c.id)));
+    if (hit) { select(hit, false); return; }
+  }
+  select(null, false);
+  // Anywhere else: the nearest US city within about 40 km.
+  const [lon, lat] = proj.invert([bx, by]);
+  const near = nearestPlace(lon, lat, 40);
+  if (near) selectPlace(near);
 });
 
 new ResizeObserver(() => { const keep = S.t; resize(); }).observe(wrap);
