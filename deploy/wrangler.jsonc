@@ -1,0 +1,11 @@
+{
+  // Static CS's Storm Watch site (index.html + data/) served by Cloudflare Workers assets.
+  "name": "cs-storm-watch",
+  "account_id": "081e6a789f53fbe3769f33d182c6a0c0",
+  "compatibility_date": "2026-10-23",
+  "assets": {
+    "directory": "./site",
+    "not_found_handling": "none"
+  },
+  "workers_dev": true
+}

@@ -1,0 +1,17 @@
+# Local tooling and caches
+.venv/
+.cache/
+node_modules/
+.DS_Store
+*.log
+*.app/
+.claude/
+
+# Generated every refresh (rebuilt in the cloud)
+wxmap/data/*
+!wxmap/data/base/
+!wxmap/data/states-10m.json
+!wxmap/data/counties-10m.json
+wxmap/publish_files.json
+deploy/site/
+.wrangler/

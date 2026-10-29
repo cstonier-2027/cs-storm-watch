@@ -1,0 +1,931 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CS's Storm Watch</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Storm Watch">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a1119">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-512.png">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one-screen ops console. Map fills the stage; a control rail on the left, hazards rail on the right, timeline docked under the map. Stacks to one column on phones. */
+:root {
+  --ink: #e6edf3;          /* primary text */
+  --ink-2: #9aabbd;        /* secondary text */
+  --ink-3: #66788c;        /* tertiary, rules */
+  --panel: #111a24;        /* rails */
+  --panel-2: #172331;      /* raised controls */
+  --stage: #0a1119;        /* page ground */
+  --ocean: #0d1824;        /* map water */
+  --land: #1a2633;         /* map land */
+  --line: #2a3a4c;         /* hairlines */
+  --accent: #5cc8ff;       /* radar cyan: focus, active controls */
+  --warn: #ff4d4d; --watch: #ffb020; --adv: #6fd3a0;
+  --f-display: "Saira Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+[hidden] { display: none !important; }
+body { background: var(--stage); color: var(--ink); font: 14px/1.45 var(--f-body); overflow: hidden; }
+* { box-sizing: border-box; }
+button, select, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.app { height: 100%; display: grid; grid-template-rows: auto 1fr; }
+header.top {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  border-bottom: 1px solid var(--line); background: var(--panel);
+}
+.brand { display: flex; align-items: baseline; gap: 10px; }
+.brand h1 { margin: 0; font: 700 26px/1 var(--f-display); letter-spacing: .04em; text-transform: uppercase; }
+.brand h1 b { color: var(--accent); font-weight: 700; }
+.brand h1 i { font-style: normal; text-transform: none; }
+.brand span { font: 500 12px var(--f-mono); color: var(--ink-3); letter-spacing: .06em; }
+.stamps { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+.stamp { font: 500 11.5px var(--f-mono); color: var(--ink-2); background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 4px 8px; white-space: nowrap; }
+.stamp em { font-style: normal; color: var(--ink-3); margin-right: 6px; text-transform: uppercase; letter-spacing: .08em; }
+
+.body { min-height: 0; display: grid; grid-template-columns: 272px minmax(0, 1fr) 320px; }
+.rail { min-height: 0; overflow-y: auto; background: var(--panel); border-right: 1px solid var(--line); padding: 14px; display: flex; flex-direction: column; gap: 18px; }
+.rail.right { border-right: 0; border-left: 1px solid var(--line); }
+.sec h2 { margin: 0 0 8px; font: 600 13px var(--f-display); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-2); display: flex; justify-content: space-between; align-items: baseline; }
+.sec h2 small { font: 400 11px var(--f-mono); letter-spacing: 0; text-transform: none; color: var(--ink-3); }
+
+.seg { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 3px; gap: 3px; }
+.seg button { border: 0; background: transparent; padding: 6px 4px; border-radius: 4px; cursor: pointer; font: 600 13px var(--f-display); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: #04121c; }
+
+.fieldlist { display: grid; gap: 2px; margin-top: 8px; }
+.fieldlist button { display: flex; justify-content: space-between; align-items: center; gap: 8px; text-align: left; border: 1px solid transparent; background: transparent; padding: 6px 8px; border-radius: 4px; cursor: pointer; color: var(--ink-2); }
+.fieldlist button:hover { background: var(--panel-2); color: var(--ink); }
+.fieldlist button[aria-pressed="true"] { border-color: var(--accent); color: var(--ink); background: var(--panel-2); }
+.fieldlist button .u { font: 11px var(--f-mono); color: var(--ink-3); }
+.fieldlist[hidden] { display: none; }
+
+.toggles { display: grid; gap: 6px; }
+.tg { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 3px 0; }
+.tg input { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }
+.tg .sw { width: 10px; height: 10px; border-radius: 2px; flex: none; }
+.tg .n { font: 11px var(--f-mono); color: var(--ink-3); margin-left: auto; }
+select.sel { width: 100%; background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; margin-top: 4px; }
+.range { display: flex; align-items: center; gap: 10px; font: 11px var(--f-mono); color: var(--ink-3); }
+.range input { flex: 1; accent-color: var(--accent); }
+
+.legend { display: grid; gap: 6px; }
+.lbar { display: flex; height: 12px; border-radius: 2px; overflow: hidden; border: 1px solid var(--line); }
+.lbar i { flex: 1; }
+.lticks { display: flex; font: 10.5px var(--f-mono); color: var(--ink-2); }
+.lticks span { flex: 1; text-align: left; font-variant-numeric: tabular-nums; }
+.lcap { font: 11px var(--f-mono); color: var(--ink-3); }
+.keyrow { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12px; color: var(--ink-2); }
+.keyrow span { display: inline-flex; align-items: center; gap: 6px; }
+.keyrow i { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+
+.stage { position: relative; min-width: 0; min-height: 0; display: grid; grid-template-rows: 1fr auto; background: var(--ocean); }
+.mapwrap { position: relative; min-height: 0; overflow: hidden; cursor: grab; touch-action: none; }
+.mapwrap::after { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 1; box-shadow: inset 0 0 90px rgba(4, 10, 18, .55), inset 0 0 18px rgba(4, 10, 18, .4); }
+.live { display: inline-flex; align-items: center; gap: 7px; font: 500 11.5px var(--f-mono); color: var(--ink); background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px 4px 8px; white-space: nowrap; }
+.live i { width: 8px; height: 8px; border-radius: 50%; background: var(--adv); box-shadow: 0 0 0 0 rgba(111,211,160,.6); animation: ping 2.4s ease-out infinite; }
+.live.stale i { background: var(--watch); animation: none; }
+@keyframes ping { 0% { box-shadow: 0 0 0 0 rgba(111,211,160,.55); } 70%, 100% { box-shadow: 0 0 0 7px rgba(111,211,160,0); } }
+.mapwrap:active { cursor: grabbing; }
+canvas#map { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.probe {
+  position: absolute; pointer-events: none; z-index: 3; min-width: 190px; max-width: 280px;
+  background: rgba(10, 17, 25, .78); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border-radius: 10px !important; border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px;
+  font: 12px/1.5 var(--f-mono); color: var(--ink); box-shadow: 0 8px 24px rgba(0,0,0,.4);
+}
+.probe .h { font: 600 13px var(--f-body); margin-bottom: 4px; }
+.probe .r { display: flex; justify-content: space-between; gap: 14px; font-variant-numeric: tabular-nums; }
+.probe .r span:first-child { color: var(--ink-3); }
+.probe .al { margin-top: 6px; display: grid; gap: 3px; font: 600 11.5px var(--f-body); }
+.probe .al div { display: flex; gap: 6px; align-items: center; }
+.probe .al i { width: 8px; height: 8px; border-radius: 1px; flex: none; }
+.mapbtns { position: absolute; right: 12px; top: 12px; display: grid; gap: 8px; z-index: 2; }
+.mapbtns button { width: 36px; height: 36px; border-radius: 10px; border: 1px solid rgba(154,171,189,.22); background: rgba(14,22,32,.62); -webkit-backdrop-filter: blur(10px) saturate(1.3); backdrop-filter: blur(10px) saturate(1.3); cursor: pointer; font: 600 18px var(--f-mono); box-shadow: 0 6px 18px rgba(0,0,0,.3); }
+.mapbtns button:hover { border-color: var(--accent); }
+.validtag { position: absolute; left: 12px; top: 12px; z-index: 2; pointer-events: none; background: rgba(10,17,25,.6); -webkit-backdrop-filter: blur(12px) saturate(1.3); backdrop-filter: blur(12px) saturate(1.3); border: 1px solid rgba(154,171,189,.22); border-radius: 12px; padding: 8px 12px; box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+.validtag .k { font: 600 11px var(--f-display); letter-spacing: .16em; text-transform: uppercase; color: var(--accent); }
+.validtag .v { font: 500 15px var(--f-mono); font-variant-numeric: tabular-nums; }
+.validtag .s { font: 11px var(--f-mono); color: var(--ink-3); }
+.loading { position: absolute; inset: 0; display: grid; place-items: center; font: 600 15px var(--f-display); letter-spacing: .2em; text-transform: uppercase; color: var(--ink-2); z-index: 4; background: var(--ocean); }
+
+.timeline {
+  display: grid; grid-template-columns: auto auto auto minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  padding: 10px 14px; background: var(--panel); border-top: 1px solid var(--line);
+}
+.timeline button { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel-2); cursor: pointer; display: grid; place-items: center; }
+.timeline button.play { width: 40px; height: 40px; background: var(--accent); border-color: var(--accent); color: #04121c; }
+.timeline svg { width: 14px; height: 14px; fill: currentColor; }
+.ticks { position: relative; height: 34px; }
+.ticks input { position: absolute; inset: 0; width: 100%; margin: 0; opacity: 0; cursor: pointer; z-index: 2; }
+.ticks .bars { position: absolute; inset: 8px 0 12px; display: flex; gap: 2px; }
+.ticks .bars i { flex: 1; background: var(--line); border-radius: 1px; transition: background .15s; }
+.ticks .bars i.on { background: var(--accent); }
+.ticks .bars i.past { background: #2f5a74; }
+.ticks .lab { position: absolute; left: 0; right: 0; bottom: -2px; display: flex; justify-content: space-between; font: 10px var(--f-mono); color: var(--ink-3); }
+.speed { display: flex; align-items: center; gap: 6px; font: 11px var(--f-mono); color: var(--ink-3); }
+.speed select { background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 4px; }
+
+.alist { display: grid; gap: 6px; }
+.acard { display: grid; grid-template-columns: 4px minmax(0,1fr); gap: 0 10px; text-align: left; border: 1px solid var(--line); background: var(--panel-2); border-radius: 6px; padding: 8px 10px 8px 0; cursor: pointer; overflow: hidden; }
+.acard:hover, .acard[aria-current="true"] { border-color: var(--accent); }
+.acard .stripe { grid-row: span 3; border-radius: 0 2px 2px 0; }
+.acard .ev { font: 600 13.5px var(--f-body); min-width: 0; }
+.acard .ar { font-size: 12px; color: var(--ink-2); min-width: 0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.acard .tm { font: 11px var(--f-mono); color: var(--ink-3); }
+.filt { width: 100%; background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 7px 9px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 3px 10px; font: 500 12px var(--f-body); color: var(--ink-2); cursor: pointer; }
+.chip[aria-pressed="true"] { border-color: var(--accent); color: var(--ink); background: var(--panel-2); }
+.detail { border: 1px solid var(--line); border-radius: 6px; background: var(--panel-2); padding: 12px; display: grid; gap: 8px; }
+.detail h3 { margin: 0; font: 700 20px/1.1 var(--f-display); letter-spacing: .03em; text-transform: uppercase; }
+.detail .meta { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; font: 11.5px var(--f-mono); }
+.detail .meta span:nth-child(odd) { color: var(--ink-3); }
+.detail pre { margin: 0; white-space: pre-wrap; font: 12px/1.5 var(--f-mono); color: var(--ink-2); max-height: 260px; overflow-y: auto; }
+.detail .x { justify-self: start; border: 1px solid var(--line); background: transparent; border-radius: 4px; padding: 4px 10px; cursor: pointer; font-size: 12px; }
+.summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.summary div { border: 1px solid var(--line); border-radius: 6px; padding: 8px; background: var(--panel-2); }
+.summary b { display: block; font: 600 22px/1 var(--f-display); font-variant-numeric: tabular-nums; }
+.summary span { font: 10.5px var(--f-mono); color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em; }
+.note { font-size: 12px; color: var(--ink-3); }
+.note a { color: var(--accent); }
+
+@media (max-width: 1180px) { .body { grid-template-columns: 252px minmax(0,1fr); } .rail.right { display: none; } .rail.right.show { display: flex; } }
+@media (max-width: 860px) {
+  body { overflow: auto; }
+  .app { height: auto; }
+  .body { grid-template-columns: minmax(0, 1fr); }
+  .stage { order: -1; height: 72vh; min-height: 420px; }
+  .rail, .rail.right { display: flex; border: 0; border-top: 1px solid var(--line); overflow: visible; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .timeline { grid-template-columns: auto auto auto minmax(0,1fr); }
+  .speed { display: none; }
+  .stamps { margin-left: 0; }
+  .stamps .stamp, .brand span { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .ticks .bars i { transition: none; } }
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="brand"><h1>CS<i>'s</i> Storm <b>Watch</b></h1><span>CONUS · NWS / SPC / NCEP</span></div>
+    <div class="stamps" id="stamps"></div>
+  </header>
+  <div class="body">
+    <aside class="rail" aria-label="Map layers">
+      <section class="sec">
+        <h2>Base layer</h2>
+        <div class="seg" role="group" aria-label="Base layer">
+          <button id="m-radar" aria-pressed="true">Radar</button>
+          <button id="m-hrrr" aria-pressed="false">HRRR</button>
+          <button id="m-none" aria-pressed="false">Off</button>
+        </div>
+        <div class="fieldlist" id="fields" hidden></div>
+        <div class="range" style="margin-top:10px"><label for="op">Opacity</label><input id="op" type="range" min="20" max="100" value="85"><span id="opv">85%</span></div>
+      </section>
+      <section class="sec">
+        <h2>Legend <small id="legunit"></small></h2>
+        <div class="legend" id="legend"></div>
+      </section>
+      <section class="sec">
+        <h2>SPC outlook</h2>
+        <label class="tg"><input type="checkbox" id="t-spc" checked><span>Show convective outlook</span></label>
+        <select class="sel" id="spcsel" aria-label="Outlook product">
+          <option value="day1otlk_cat">Day 1 · Categorical</option>
+          <option value="day1otlk_torn">Day 1 · Tornado probability</option>
+          <option value="day1otlk_wind">Day 1 · Damaging wind probability</option>
+          <option value="day1otlk_hail">Day 1 · Large hail probability</option>
+          <option value="day2otlk_cat">Day 2 · Categorical</option>
+          <option value="day3otlk_cat">Day 3 · Categorical</option>
+        </select>
+        <div class="keyrow" id="spckey" style="margin-top:8px"></div>
+      </section>
+      <section class="sec">
+        <h2>Basemap</h2>
+        <div class="seg" role="group" aria-label="Basemap style" style="grid-template-columns:repeat(2,1fr)">
+          <button id="b-terrain" aria-pressed="true">Terrain</button>
+          <button id="b-flat" aria-pressed="false">Flat</button>
+        </div>
+        <div class="toggles" style="margin-top:10px">
+          <label class="tg"><input type="checkbox" id="t-roads" checked><span class="sw" style="background:#e0a85a"></span><span>Roads (interstates; highways when zoomed)</span></label>
+          <label class="tg"><input type="checkbox" id="t-cities" checked><span class="sw" style="background:#f2f4f7;border-radius:50%"></span><span>Cities</span></label>
+          <label class="tg"><input type="checkbox" id="t-water" checked><span class="sw" style="background:#4f8fc0"></span><span>Rivers &amp; lakes</span></label>
+          <label class="tg"><input type="checkbox" id="t-sat" checked><span class="sw" style="background:#eef2f7"></span><span>Satellite clouds (GOES-East)</span><span class="n" id="n-sat"></span></label>
+        </div>
+        <select class="sel" id="satsel" aria-label="Satellite view">
+          <option value="ir">Clouds · infrared (day &amp; night)</option>
+          <option value="vis">Clouds · visible (daytime only)</option>
+          <option value="enh">Enhanced infrared · storm tops</option>
+        </select>
+      </section>
+      <section class="sec">
+        <h2>Overlays</h2>
+        <div class="toggles">
+          <label class="tg"><input type="checkbox" id="t-alerts" checked><span class="sw" style="background:#ff4d4d"></span><span>NWS warnings &amp; advisories</span><span class="n" id="n-alerts"></span></label>
+          <label class="tg"><input type="checkbox" id="t-obs" checked><span class="sw" style="background:#e3d34a"></span><span>Surface obs (METAR)</span><span class="n" id="n-obs"></span></label>
+          <label class="tg"><input type="checkbox" id="t-rpts" checked><span class="sw" style="background:#e5322c"></span><span>Today's storm reports</span><span class="n" id="n-rpts"></span></label>
+          <label class="tg"><input type="checkbox" id="t-ww" checked><span class="sw" style="background:#ffd400"></span><span>SPC watches &amp; MDs</span><span class="n" id="n-ww"></span></label>
+          <label class="tg"><input type="checkbox" id="t-cty" checked><span class="sw" style="background:#3a4c60"></span><span>County lines (when zoomed)</span></label>
+        </div>
+      </section>
+      <p class="note">Terrain and ocean depth: AWS Terrain Tiles (USGS elevation, NOAA ETOPO1 bathymetry). Roads, cities, rivers: Natural Earth. Snapshot build. Radar: NEXRAD base reflectivity mosaic via Iowa Environmental Mesonet. Model: NCEP HRRR. Alerts: api.weather.gov. Outlooks and reports: <a href="https://www.spc.noaa.gov/" target="_blank" rel="noopener">spc.noaa.gov</a>. Obs: aviationweather.gov.</p>
+    </aside>
+
+    <main class="stage">
+      <div class="mapwrap" id="mapwrap">
+        <canvas id="map" aria-label="Weather map of the contiguous United States"></canvas>
+        <div class="validtag" id="validtag"><div class="k" id="vk">Radar</div><div class="v" id="vv">—</div><div class="s" id="vs"></div></div>
+        <div class="mapbtns">
+          <button id="zin" aria-label="Zoom in">+</button>
+          <button id="zout" aria-label="Zoom out">−</button>
+          <button id="zhome" aria-label="Reset view" style="font-size:13px">⌂</button>
+        </div>
+        <div class="probe" id="probe" hidden></div>
+        <div class="loading" id="loading">Loading data…</div>
+      </div>
+      <div class="timeline">
+        <button id="prev" aria-label="Previous frame"><svg viewBox="0 0 16 16"><path d="M3 2h2v12H3zM14 2v12L6 8z"/></svg></button>
+        <button id="play" class="play" aria-label="Play"><svg viewBox="0 0 16 16" id="playicon"><path d="M4 2l10 6-10 6z"/></svg></button>
+        <button id="next" aria-label="Next frame"><svg viewBox="0 0 16 16"><path d="M11 2h2v12h-2zM2 2v12l8-6z"/></svg></button>
+        <div class="ticks"><div class="bars" id="bars"></div><div class="lab"><span id="lab0"></span><span id="lab1"></span></div><input type="range" id="slider" min="0" max="0" value="0" aria-label="Animation frame"></div>
+        <div class="speed"><label for="spd">Speed</label><select id="spd"><option value="900">Slow</option><option value="450" selected>Normal</option><option value="200">Fast</option></select></div>
+      </div>
+    </main>
+
+    <aside class="rail right" aria-label="Active hazards">
+      <section class="sec">
+        <h2>Active hazards <small id="hz-count"></small></h2>
+        <div class="summary" id="summary"></div>
+      </section>
+      <section class="sec" id="detailsec" hidden>
+        <div class="detail" id="detail"></div>
+      </section>
+      <section class="sec">
+        <input class="filt" id="filt" type="search" placeholder="Filter by event, state, county…" aria-label="Filter alerts">
+        <div class="chips" style="margin-top:8px" id="chips"></div>
+      </section>
+      <section class="sec"><div class="alist" id="alist"></div></section>
+    </aside>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<script>
+(() => {
+"use strict";
+const R = 6378137, BW = 1400;
+const $ = id => document.getElementById(id);
+const canvas = $("map"), ctx = canvas.getContext("2d"), wrap = $("mapwrap");
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// NWS hazard map colors (weather.gov/help-map) for the products that commonly appear.
+const ALERT_COLORS = {
+  "Tornado Warning": "#FF0000", "Extreme Wind Warning": "#FF8C00", "Severe Thunderstorm Warning": "#FFA500",
+  "Flash Flood Warning": "#8B0000", "Flash Flood Emergency": "#8B0000", "Tornado Watch": "#FFFF00",
+  "Severe Thunderstorm Watch": "#DB7093", "Flash Flood Watch": "#2E8B57", "Flood Warning": "#00FF00",
+  "Flood Advisory": "#00FF7F", "Flood Watch": "#2E8B57", "Flood Statement": "#00FF00",
+  "Winter Storm Warning": "#FF69B4", "Winter Storm Watch": "#4682B4", "Blizzard Warning": "#FF4500",
+  "Ice Storm Warning": "#8B008B", "Winter Weather Advisory": "#7B68EE", "Lake Effect Snow Warning": "#008B8B",
+  "High Wind Warning": "#DAA520", "High Wind Watch": "#B8860B", "Wind Advisory": "#D2B48C",
+  "Extreme Cold Warning": "#0000FF", "Cold Weather Advisory": "#AFEEEE", "Freeze Warning": "#483D8B",
+  "Freeze Watch": "#00FFFF", "Frost Advisory": "#6495ED", "Excessive Heat Warning": "#C71585",
+  "Extreme Heat Warning": "#C71585", "Heat Advisory": "#FF7F50", "Red Flag Warning": "#FF1493",
+  "Fire Weather Watch": "#FFDEAD", "Dense Fog Advisory": "#708090", "Dense Smoke Advisory": "#F0E68C",
+  "Special Weather Statement": "#FFE4B5", "Hurricane Warning": "#DC143C", "Hurricane Watch": "#FF00FF",
+  "Tropical Storm Warning": "#B22222", "Tropical Storm Watch": "#F08080", "Storm Surge Warning": "#B524F7",
+  "Coastal Flood Warning": "#228B22", "Coastal Flood Advisory": "#7CFC00", "Coastal Flood Statement": "#6B8E23",
+  "High Surf Advisory": "#BA55D3", "High Surf Warning": "#228B22", "Rip Current Statement": "#40E0D0",
+  "Beach Hazards Statement": "#40E0D0", "Air Quality Alert": "#808080", "Hydrologic Outlook": "#90EE90",
+  "Small Craft Advisory": "#D8BFD8", "Gale Warning": "#DDA0DD", "Storm Warning": "#9400D3",
+  "Hurricane Force Wind Warning": "#CD5C5C", "Special Marine Warning": "#FFA500", "Marine Weather Statement": "#FFDAB9",
+  "Dust Storm Warning": "#FFE4C4", "Blowing Dust Advisory": "#BDB76B", "Avalanche Warning": "#1E90FF",
+};
+const alertColor = ev => ALERT_COLORS[ev] || (/Warning/.test(ev) ? "#ff6b6b" : /Watch/.test(ev) ? "#ffcc33" : "#8fb3c9");
+const RANK = ev => /Tornado Warning|Emergency/.test(ev) ? 0 : /Extreme Wind|Severe Thunderstorm Warning|Flash Flood Warning/.test(ev) ? 1 :
+  /Warning/.test(ev) ? 2 : /Watch/.test(ev) ? 3 : /Advisory/.test(ev) ? 4 : 5;
+const PULSE = new Set(["Tornado Warning", "Severe Thunderstorm Warning", "Flash Flood Warning", "Extreme Wind Warning", "Special Marine Warning"]);
+
+// NEXRAD reflectivity colors used by the IEM n0q composite.
+const RADAR_SCALE = [[5,"#04e9e7"],[10,"#019ff4"],[15,"#0300f4"],[20,"#02fd02"],[25,"#01c501"],[30,"#008e00"],[35,"#fdf802"],[40,"#e5bc00"],[45,"#fd9500"],[50,"#fd0000"],[55,"#d40000"],[60,"#bc0000"],[65,"#f800fd"],[70,"#9854c6"],[75,"#fdfdfd"]];
+const FIELD_INFO = {
+  refc: { name: "Simulated reflectivity", unit: "dBZ", fmt: v => v.toFixed(0) + " dBZ" },
+  stp: { name: "Significant tornado parameter", unit: "fixed-layer, ML parcel", fmt: v => v.toFixed(1) },
+  mlcape: { name: "Mixed-layer CAPE", unit: "J/kg", fmt: v => v.toFixed(0) + " J/kg" },
+  sbcape: { name: "Surface-based CAPE", unit: "J/kg", fmt: v => v.toFixed(0) + " J/kg" },
+  mlcin: { name: "Mixed-layer CIN", unit: "J/kg", fmt: v => v.toFixed(0) + " J/kg" },
+  srh1: { name: "0–1 km storm-relative helicity", unit: "m²/s²", fmt: v => v.toFixed(0) + " m²/s²" },
+  srh3: { name: "0–3 km storm-relative helicity", unit: "m²/s²", fmt: v => v.toFixed(0) + " m²/s²" },
+  shr6: { name: "0–6 km bulk shear", unit: "kt", fmt: v => v.toFixed(0) + " kt" },
+  uh: { name: "2–5 km updraft helicity (1-h max)", unit: "m²/s²", fmt: v => v.toFixed(0) + " m²/s²" },
+  t2: { name: "2 m temperature", unit: "°F", fmt: v => v.toFixed(0) + "°F" },
+  td2: { name: "2 m dewpoint", unit: "°F", fmt: v => v.toFixed(0) + "°F" },
+};
+const FIELD_ORDER = ["refc", "stp", "mlcape", "sbcape", "srh1", "srh3", "shr6", "uh", "t2", "td2"];
+
+const S = {
+  mode: "radar", field: "stp", frame: 0, playing: false, opacity: .85, spc: "day1otlk_cat",
+  satKind: "ir",
+  show: { spc: true, alerts: true, sat: true, obs: true, rpts: true, ww: true, cty: true, roads: true, cities: true, water: true },
+  base: "terrain",
+  t: d3.zoomIdentity, selected: null, chip: "all", filter: "",
+};
+let D = {}, proj, BH, TR = null, imgs = { radar: [], hrrr: {} }, probeCache = {}, paths = {}, fade = 1, lastStep = 0;
+
+// ---------- helpers
+const fmtZ = iso => iso ? iso.slice(11, 16).replace(":", "") + "Z" : "";
+const fmtLocal = iso => new Date(iso.replace(/Z$/, ":00Z")).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit", timeZoneName: "short" });
+const fmtDate = iso => iso ? new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" }) : "—";
+const loadImg = src => new Promise(res => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; });
+const j = u => fetch(u + (D.meta ? "?v=" + D.meta.built : "?t=" + Date.now()), { cache: "no-store" }).then(r => { if (!r.ok) throw new Error(u + " " + r.status); return r.json(); });
+
+function scaleHtml(scale, unit, caption) {
+  const bar = scale.map(([, c]) => `<i style="background:${c}"></i>`).join("");
+  const ticks = scale.map(([v]) => `<span>${v}</span>`).join("");
+  return `<div class="lbar">${bar}</div><div class="lticks">${ticks}</div><div class="lcap">${caption || unit}</div>`;
+}
+
+// ---------- boot
+async function boot() {
+  const [meta, states, counties, alerts, spc, reports, metars, watches, mds] = await Promise.all([
+    j("data/meta.json"), j("data/states-10m.json"), j("data/counties-10m.json"), j("data/alerts.json"),
+    j("data/spc.json"), j("data/reports.json"), j("data/metars.json"), j("data/watches.json").catch(() => ({ features: [] })),
+    j("data/mds.json").catch(() => ({ features: [] })),
+  ]);
+  const [roads, cities, lakes, rivers, neighbors] = await Promise.all(["roads", "cities", "lakes", "rivers", "neighbors"]
+    .map(n => j(`data/base/${n}.json`).catch(() => n === "cities" ? [] : { features: [] })));
+  if (!Array.isArray(meta.sat)) meta.sat = [];
+  D = { meta, states, counties, alerts, spc, reports, metars, watches, mds, roads, cities, lakes, rivers, neighbors };
+  imgs.terrain = loadImg("data/base/terrain.jpg").then(i => { imgs.terrain = i; draw(); });
+  const f = meta.frame, k = BW / (f.x1 - f.x0);
+  BH = Math.round((f.y1 - f.y0) * k);
+  proj = d3.geoMercator().scale(R * k).translate([-f.x0 * k, f.y1 * k]).precision(0.2);
+  const tb = await j("data/base/terrain.json").catch(() => null);
+  // Terrain rectangle in base pixels; it bounds panning and zooming so the view never shows empty space.
+  if (tb) TR = [(tb.x0 - f.x0) * k, (f.y1 - tb.y1) * k, (tb.x1 - f.x0) * k, (f.y1 - tb.y0) * k];
+  buildPaths();
+  stamps();
+  buildFields();
+  buildAlertsUI();
+  counts();
+  spcKey();
+  resize();
+  fitHome(false);
+  setMode("radar");
+  // Radar frames first (default view), model frames on demand.
+  imgs.radar = await Promise.all(meta.radar.map(r => loadImg(r.src + "?v=" + meta.built)));
+  imgs.sat = {};
+  const sf = (meta.sat || []).at(-1); if (sf) await satImg(sf, "ir");
+  $("loading").hidden = true;
+  S.frame = meta.radar.length - 1; syncSlider(); draw();
+  if (!reduceMotion) togglePlay(true);
+}
+
+function stamps() {
+  const m = D.meta, last = m.radar.at(-1);
+  const out = [["Radar", last ? fmtZ(last.t) : "n/a"], ["HRRR", fmtZ(m.hrrr.cycle) + " run"]];
+  const sl = m.sat.at(-1); if (sl) out.splice(2, 0, ["GOES", fmtZ(sl.t)]);
+  const spcd = D.spc.day1otlk_cat?.features?.[0]?.properties;
+  if (spcd) out.push(["SPC D1", spcd.ISSUE.slice(8, 12) + "Z"]);
+  $("stamps").innerHTML = `<span class="live" id="live"><i></i><span id="age"></span></span>` + out.map(([a, b]) => `<span class="stamp"><em>${a}</em>${b}</span>`).join("");
+  const tick = () => {
+    const mins = Math.max(0, Math.round((Date.now() - Date.parse(m.built)) / 60000));
+    $("age").textContent = mins < 1 ? "Updated just now" : mins < 90 ? `Updated ${mins} min ago` : `Updated ${Math.round(mins / 60)} h ago`;
+    $("live").classList.toggle("stale", mins > 45);
+  };
+  tick(); setInterval(tick, 30000);
+}
+
+// ---------- geometry
+function buildPaths() {
+  const gp = d3.geoPath(proj);
+  const P = g => new Path2D(gp(g) || "");
+  const st = D.states, ct = D.counties;
+  paths.nation = P(topojson.feature(st, st.objects.nation));
+  paths.states = P(topojson.mesh(st, st.objects.states, (a, b) => a !== b));
+  paths.coast = P(topojson.mesh(st, st.objects.nation));
+  paths.neighbors = P(D.neighbors);
+  paths.lakes = P(D.lakes);
+  paths.rivers = P(D.rivers);
+  paths.roadsMajor = P({ type: "FeatureCollection", features: D.roads.features.filter(f => f.properties.k === 1) });
+  paths.roadsMinor = P({ type: "FeatureCollection", features: D.roads.features.filter(f => f.properties.k === 2) });
+  D.cities.forEach(c => { const p = proj([c.lon, c.lat]); c.x = p[0]; c.y = p[1]; });
+  paths.counties = P(topojson.mesh(ct, ct.objects.counties, (a, b) => a !== b && (a.id / 1000 | 0) === (b.id / 1000 | 0)));
+  const stateName = {};
+  topojson.feature(st, st.objects.states).features.forEach(s => stateName[s.id] = s.properties.name);
+  paths.county = {};
+  D.countyList = topojson.feature(ct, ct.objects.counties).features.map(c => {
+    const b = gp.bounds(c);
+    const rec = { id: c.id, name: c.properties.name, st: stateName[c.id.slice(0, 2)] || "", p: P(c), b };
+    paths.county[c.id] = rec;
+    return rec;
+  });
+  // Alerts: county-based use county shapes; storm-based use their own polygon.
+  D.alerts.forEach(a => {
+    a.color = alertColor(a.event); a.rank = RANK(a.event);
+    if (a.geom) { a.path = P(a.geom); a.b = gp.bounds(a.geom); a.poly = true; }
+    else if (a.fips.length) {
+      const p = new Path2D(); let b = [[1e9, 1e9], [-1e9, -1e9]];
+      a.fips.forEach(id => { const c = paths.county[id]; if (!c) return; p.addPath(c.p); b = [[Math.min(b[0][0], c.b[0][0]), Math.min(b[0][1], c.b[0][1])], [Math.max(b[1][0], c.b[1][0]), Math.max(b[1][1], c.b[1][1])]]; });
+      if (b[0][0] < 1e9) { a.path = p; a.b = b; }
+    }
+  });
+  D.alerts.sort((x, y) => x.rank - y.rank || (x.event < y.event ? -1 : 1));
+  for (const [kk, fc] of Object.entries(D.spc)) fc.features?.forEach(ft => ft.path = P(ft));
+  [D.watches, D.mds].forEach(fc => fc.features?.forEach(ft => ft.path = P(ft)));
+  D.metars.forEach(o => { const p = proj([o.lon, o.lat]); o.x = p[0]; o.y = p[1]; });
+  D.reports.forEach(o => { const p = proj([o.lon, o.lat]); o.x = p[0]; o.y = p[1]; });
+  // County-under-point lookup grid (base px buckets).
+  D.grid = new Map();
+  D.countyList.forEach(c => {
+    for (let gx = Math.floor(c.b[0][0] / 20); gx <= Math.floor(c.b[1][0] / 20); gx++)
+      for (let gy = Math.floor(c.b[0][1] / 20); gy <= Math.floor(c.b[1][1] / 20); gy++) {
+        const key = gx + "," + gy; if (!D.grid.has(key)) D.grid.set(key, []); D.grid.get(key).push(c);
+      }
+  });
+  // Hatch pattern for SPC significant-severe areas.
+  const hc = document.createElement("canvas"); hc.width = hc.height = 8;
+  const hx = hc.getContext("2d"); hx.strokeStyle = "rgba(0,0,0,.75)"; hx.lineWidth = 1.2;
+  hx.beginPath(); hx.moveTo(0, 8); hx.lineTo(8, 0); hx.moveTo(-2, 2); hx.lineTo(2, -2); hx.moveTo(6, 10); hx.lineTo(10, 6); hx.stroke();
+  paths.hatch = ctx.createPattern(hc, "repeat");
+}
+
+function countyAt(bx, by) {
+  const cands = D.grid.get(Math.floor(bx / 20) + "," + Math.floor(by / 20)) || [];
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+  const hit = cands.find(c => ctx.isPointInPath(c.p, bx, by));
+  ctx.restore();
+  return hit;
+}
+
+// ---------- view
+let dpr = 1, cw = 0, ch = 0;
+function resize() {
+  const r = wrap.getBoundingClientRect(); dpr = Math.min(devicePixelRatio || 1, 2);
+  cw = r.width; ch = r.height; canvas.width = Math.round(cw * dpr); canvas.height = Math.round(ch * dpr);
+  applyLimits();
+  if (proj) d3.select(canvas).call(zoom.transform, clampT(S.t.k < minK() ? homeT() : S.t));
+  draw();
+}
+const zoom = d3.zoom().scaleExtent([0.2, 60]).on("zoom", e => { S.t = e.transform; draw(); hideProbe(); });
+d3.select(canvas).call(zoom).on("dblclick.zoom", null);
+const bounds = () => TR || [0, 0, BW, BH || BW / 1.8];
+// Smallest zoom that still fills the whole view with map.
+function minK() { const b = bounds(); return Math.max(cw / (b[2] - b[0]), ch / (b[3] - b[1])); }
+function applyLimits() {
+  if (!cw || !BH) return;
+  const b = bounds();
+  zoom.scaleExtent([minK(), 60]).translateExtent([[b[0], b[1]], [b[2], b[3]]]);
+}
+function clampT(t) {
+  const b = bounds(), k = Math.max(t.k, minK());
+  const x = Math.min(-b[0] * k, Math.max(cw - b[2] * k, t.x)), y = Math.min(-b[1] * k, Math.max(ch - b[3] * k, t.y));
+  return d3.zoomIdentity.translate(x, y).scale(k);
+}
+function homeT() {
+  const k = Math.max(minK(), Math.min(cw / BW, ch / BH) * 1.04);
+  return clampT(d3.zoomIdentity.translate(cw / 2 - BW / 2 * k, ch / 2 - BH * .52 * k).scale(k));
+}
+function fitHome(anim = true) { d3.select(canvas).transition().duration(anim && !reduceMotion ? 600 : 0).call(zoom.transform, homeT()); }
+function zoomToBounds(b) {
+  const w = b[1][0] - b[0][0], h = b[1][1] - b[0][1];
+  const k = Math.min(40, 0.7 * Math.min(cw / Math.max(w, 2), ch / Math.max(h, 2)));
+  const t = clampT(d3.zoomIdentity.translate(cw / 2 - k * (b[0][0] + w / 2), ch / 2 - k * (b[0][1] + h / 2)).scale(k));
+  d3.select(canvas).transition().duration(reduceMotion ? 0 : 750).call(zoom.transform, t);
+}
+$("zin").onclick = () => d3.select(canvas).transition().duration(250).call(zoom.scaleBy, 1.6);
+$("zout").onclick = () => d3.select(canvas).transition().duration(250).call(zoom.scaleBy, 1 / 1.6);
+$("zhome").onclick = () => fitHome();
+addEventListener("resize", () => { resize(); });
+
+// ---------- drawing
+// Satellite: follow the radar loop (latest scan at or before each radar frame); otherwise show the newest scan.
+function satImg(f, kind) {
+  const src = f[kind] || f.ir, key = src;
+  if (!imgs.sat || imgs.sat[key] === null) return null;
+  if (imgs.sat[key]) return imgs.sat[key] instanceof Promise ? null : imgs.sat[key];
+  imgs.sat[key] = loadImg(src + "?v=" + D.meta.built).then(i => { imgs.sat[key] = i; draw(); return i; });
+  return imgs.sat[key];
+}
+function satFor() {
+  const sf = D.meta.sat || []; if (!sf.length) return null;
+  let f = sf.at(-1);
+  if (S.mode === "radar") { const r = D.meta.radar[S.frame]; if (r) f = sf.filter(x => x.t <= r.t).at(-1) || sf[0]; }
+  const kind = S.satKind === "vis" && !f.vis ? "ir" : S.satKind;
+  sf.forEach(x => satImg(x, kind));
+  const im = satImg(f, kind);
+  return im instanceof HTMLImageElement ? im : null;
+}
+
+function frameList() { return S.mode === "radar" ? D.meta.radar : S.mode === "hrrr" ? D.meta.hrrr.hours : []; }
+function hrrrImg(field, fh) {
+  const key = field + fh;
+  if (imgs.hrrr[key] !== undefined) return imgs.hrrr[key];
+  imgs.hrrr[key] = null;
+  loadImg(`data/hrrr/${field}_h${String(fh - D.meta.hrrr.hours[0].fh).padStart(2, "0")}.png?v=${D.meta.built}`).then(i => { imgs.hrrr[key] = i; draw(); });
+  return null;
+}
+function prefetchField(field) { D.meta.hrrr.hours.forEach(h => hrrrImg(field, h.fh)); }
+
+function draw(now = performance.now()) {
+  if (!proj) return;
+  const t = S.t, k = t.k;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = "#0b1a2c"; ctx.fillRect(0, 0, cw, ch);
+  ctx.setTransform(dpr * k, 0, 0, dpr * k, dpr * t.x, dpr * t.y);
+  ctx.imageSmoothingEnabled = true;
+  const terrainOn = S.base === "terrain" && imgs.terrain instanceof HTMLImageElement;
+  const tr = bounds();
+  if (terrainOn) ctx.drawImage(imgs.terrain, tr[0], tr[1], tr[2] - tr[0], tr[3] - tr[1]);
+  else {
+    ctx.fillStyle = "#0d1824"; ctx.fillRect(tr[0], tr[1], tr[2] - tr[0], tr[3] - tr[1]);
+    ctx.fillStyle = "#16212c"; ctx.fill(paths.neighbors);
+    ctx.fillStyle = "#1a2633"; ctx.fill(paths.nation);
+    if (S.show.water) { ctx.fillStyle = "#0d1824"; ctx.fill(paths.lakes); }
+  }
+  if (S.show.water) {
+    ctx.strokeStyle = terrainOn ? "rgba(90,150,200,.55)" : "rgba(79,143,192,.45)"; ctx.lineWidth = Math.max(.5, 1.1 / Math.sqrt(k)) / k * Math.min(k, 3);
+    ctx.stroke(paths.rivers);
+  }
+  if (!terrainOn) { ctx.strokeStyle = "rgba(200,215,230,.25)"; ctx.lineWidth = .8 / k; ctx.stroke(paths.neighbors); }
+  ctx.imageSmoothingEnabled = k < 3;
+
+  if (S.show.sat) { const si = satFor(); if (si) { ctx.globalAlpha = .92; ctx.drawImage(si, 0, 0, BW, BH); ctx.globalAlpha = 1; } }
+
+  // Base raster with cross-fade between frames.
+  const fl = frameList();
+  if (fl.length) {
+    const cur = rasterFor(S.frame), prev = rasterFor(S.prevFrame ?? S.frame);
+    if (prev && prev !== cur && fade < 1) { ctx.globalAlpha = S.opacity * (1 - fade); ctx.drawImage(prev, 0, 0, BW, BH); }
+    if (cur) { ctx.globalAlpha = S.opacity * (prev && prev !== cur ? fade : 1); ctx.drawImage(cur, 0, 0, BW, BH); }
+    ctx.globalAlpha = 1;
+  }
+
+  // SPC outlook.
+  if (S.show.spc) drawSpc(k);
+
+  // Borders.
+  if (S.show.cty && k > 2.2) { ctx.strokeStyle = "rgba(120,145,170,.38)"; ctx.lineWidth = .6 / k; ctx.stroke(paths.counties); }
+  ctx.strokeStyle = "rgba(200,215,230,.75)"; ctx.lineWidth = 1.1 / k; ctx.stroke(paths.states);
+  ctx.strokeStyle = "rgba(200,215,230,.6)"; ctx.lineWidth = 1 / k; ctx.stroke(paths.coast);
+  if (S.show.roads) {
+    const z = k / homeT().k;
+    if (z > 2.2) { ctx.strokeStyle = "rgba(205,190,160,.5)"; ctx.lineWidth = Math.min(1.4, .5 + z * .08) / k; ctx.stroke(paths.roadsMinor); }
+    ctx.strokeStyle = "rgba(10,17,25,.55)"; ctx.lineWidth = Math.min(3.6, 1.6 + z * .25) / k; ctx.stroke(paths.roadsMajor);
+    ctx.strokeStyle = "rgba(232,170,90,.85)"; ctx.lineWidth = Math.min(2, .8 + z * .15) / k; ctx.stroke(paths.roadsMajor);
+  }
+
+  // Watches and mesoscale discussions.
+  if (S.show.ww) {
+    D.watches.features?.forEach(w => { const tor = /tor/i.test(w.properties?.type || ""); ctx.strokeStyle = tor ? "#ff2a2a" : "#ffd400"; ctx.lineWidth = 2.4 / k; ctx.stroke(w.path); });
+    D.mds.features?.forEach(m => { ctx.strokeStyle = "#5cc8ff"; ctx.setLineDash([6 / k, 4 / k]); ctx.lineWidth = 2 / k; ctx.stroke(m.path); ctx.setLineDash([]); });
+  }
+
+  // Alerts: county fills first (lowest priority under), then polygons with a pulse.
+  const pulse = reduceMotion ? 1 : .55 + .45 * Math.sin(now / 260);
+  if (S.show.alerts) {
+    const vis = visibleAlerts();
+    for (let i = vis.length - 1; i >= 0; i--) {
+      const a = vis[i]; if (!a.path || a.poly) continue;
+      ctx.fillStyle = a.color + (a.rank <= 2 ? "55" : "33"); ctx.fill(a.path);
+      ctx.strokeStyle = a.color; ctx.lineWidth = (a.rank <= 2 ? 1.6 : 1) / k; ctx.stroke(a.path);
+    }
+    for (let i = vis.length - 1; i >= 0; i--) {
+      const a = vis[i]; if (!a.path || !a.poly) continue;
+      ctx.fillStyle = a.color + "30"; ctx.fill(a.path);
+      ctx.strokeStyle = "#000"; ctx.lineWidth = 4 / k; ctx.stroke(a.path);
+      ctx.strokeStyle = a.color; ctx.globalAlpha = PULSE.has(a.event) ? pulse : 1; ctx.lineWidth = 2.6 / k; ctx.stroke(a.path); ctx.globalAlpha = 1;
+    }
+    if (S.selected?.path) {
+      ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 3 / k; ctx.setLineDash([8 / k, 5 / k]); ctx.lineDashOffset = reduceMotion ? 0 : -now / 60 / k; ctx.stroke(S.selected.path); ctx.setLineDash([]);
+    }
+  }
+
+  // Back to screen space for point symbols so they stay a constant size.
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const sx = x => t.x + x * k, sy = y => t.y + y * k;
+  if (S.show.obs) drawObs(sx, sy, k);
+  if (S.show.rpts) drawReports(sx, sy, k);
+  if (S.show.cities) drawCities(sx, sy, k);
+  if (S.hover) { ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(S.hover[0], S.hover[1], 5, 0, 7); ctx.stroke(); }
+}
+
+function rasterFor(i) {
+  if (S.mode === "radar") return imgs.radar[i];
+  if (S.mode === "hrrr") { const h = D.meta.hrrr.hours[i]; return h ? hrrrImg(S.field, h.fh) : null; }
+  return null;
+}
+
+function drawSpc(k) {
+  const prod = S.spc, fc = D.spc[prod]; if (!fc?.features) return;
+  ctx.globalAlpha = .38;
+  fc.features.forEach(f => { if (/^CIG/.test(f.properties.LABEL)) return; ctx.fillStyle = f.properties.fill; ctx.fill(f.path); });
+  ctx.globalAlpha = 1;
+  fc.features.forEach(f => {
+    if (/^CIG/.test(f.properties.LABEL)) { ctx.fillStyle = paths.hatch; ctx.save(); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.translate(S.t.x, S.t.y); ctx.scale(S.t.k, S.t.k); ctx.globalAlpha = .7; ctx.fill(f.path); ctx.restore(); return; }
+    ctx.strokeStyle = f.properties.stroke; ctx.lineWidth = 1.8 / k; ctx.stroke(f.path);
+  });
+  const sig = { day1otlk_torn: "day1otlk_sigtorn", day1otlk_wind: "day1otlk_sigwind", day1otlk_hail: "day1otlk_sighail" }[prod];
+  D.spc[sig]?.features?.forEach(f => { ctx.save(); ctx.globalAlpha = .7; ctx.fillStyle = paths.hatch; ctx.fill(f.path); ctx.restore(); ctx.strokeStyle = "#000"; ctx.lineWidth = 1.4 / k; ctx.setLineDash([5 / k, 3 / k]); ctx.stroke(f.path); ctx.setLineDash([]); });
+}
+
+const T_SCALE = [[-20,"#e3d9f2"],[0,"#9d7ccf"],[10,"#5a5fc7"],[20,"#3a8fd6"],[32,"#5bc0de"],[40,"#4fb38a"],[50,"#8ccb4f"],[60,"#e3d34a"],[70,"#f2a23a"],[80,"#e5622c"],[90,"#c42a2a"],[100,"#8e1a3f"]];
+const tColor = f => { let c = T_SCALE[0][1]; for (const [v, col] of T_SCALE) if (f >= v) c = col; return c; };
+const cToF = c => c * 9 / 5 + 32;
+
+function drawObs(sx, sy, k) {
+  const z = k / homeT().k, detailed = z > 3.2, mid = z > 1.7;
+  if (z < 1.35) return;  // national view: station dots only add clutter
+  const minGap = detailed ? 46 : mid ? 18 : 11, taken = new Set();
+  ctx.font = "600 11px 'IBM Plex Mono', monospace"; ctx.textBaseline = "middle";
+  for (const o of D.metars) {
+    if (o.t == null) continue;
+    const x = sx(o.x), y = sy(o.y); if (x < -30 || y < -30 || x > cw + 30 || y > ch + 30) continue;
+    const cell = Math.floor(x / minGap) + "," + Math.floor(y / minGap); if (taken.has(cell)) continue; taken.add(cell);
+    const tf = cToF(o.t);
+    if (detailed || mid) drawBarb(x, y, o.wd, o.ws, detailed ? 22 : 15);
+    ctx.fillStyle = tColor(tf); ctx.strokeStyle = "#0a1119"; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.arc(x, y, detailed ? 4 : 3, 0, 7); ctx.fill(); ctx.stroke();
+    if (detailed) {
+      ctx.lineWidth = 3; ctx.strokeStyle = "rgba(10,17,25,.9)";
+      const tt = Math.round(tf), td = o.td != null ? Math.round(cToF(o.td)) : "";
+      ctx.textAlign = "right"; ctx.strokeText(tt, x - 7, y - 8); ctx.fillStyle = tColor(tf); ctx.fillText(tt, x - 7, y - 8);
+      if (td !== "") { ctx.strokeText(td, x - 7, y + 9); ctx.fillStyle = "#6fd3a0"; ctx.fillText(td, x - 7, y + 9); }
+      ctx.textAlign = "left"; ctx.fillStyle = "#9aabbd"; ctx.strokeText(o.id, x + 7, y + 9); ctx.fillText(o.id, x + 7, y + 9);
+    }
+  }
+}
+
+function drawBarb(x, y, dir, spd, L) {
+  if (spd == null || dir === "VRB" || dir == null) return;
+  const kt = Math.round(+spd / 5) * 5; if (kt < 5) return;
+  const a = (+dir) * Math.PI / 180, ux = Math.sin(a), uy = -Math.cos(a), px = -uy, py = ux;
+  const ex = x + ux * L, ey = y + uy * L;
+  ctx.strokeStyle = "rgba(230,237,243,.9)"; ctx.fillStyle = "rgba(230,237,243,.9)"; ctx.lineWidth = 1.3;
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(ex, ey); ctx.stroke();
+  let rem = kt, pos = 0; const step = L / 6, bl = L * .45;
+  while (rem >= 50) { const bx = ex - ux * pos, by = ey - uy * pos; ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx + px * bl - ux * step * .5, by + py * bl - uy * step * .5); ctx.lineTo(bx - ux * step, by - uy * step); ctx.fill(); pos += step * 1.3; rem -= 50; }
+  while (rem >= 10) { const bx = ex - ux * pos, by = ey - uy * pos; ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx + px * bl + ux * step * .6, by + py * bl + uy * step * .6); ctx.stroke(); pos += step; rem -= 10; }
+  if (rem >= 5) { if (pos === 0) pos = step; const bx = ex - ux * pos, by = ey - uy * pos; ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx + px * bl * .55 + ux * step * .3, by + py * bl * .55 + uy * step * .3); ctx.stroke(); }
+}
+
+function drawCities(sx, sy, k) {
+  const z = k / homeT().k;
+  const minPop = z < 1.3 ? 900000 : z < 2 ? 350000 : z < 3.5 ? 120000 : z < 6 ? 40000 : 0;
+  const boxes = [];
+  ctx.textBaseline = "middle"; ctx.textAlign = "left";
+  for (const c of D.cities) {
+    if (c.pop < minPop && !(c.cap === 1 || (c.cap === 2 && z > 1.6))) continue;
+    const x = sx(c.x), y = sy(c.y); if (x < -40 || y < -20 || x > cw + 40 || y > ch + 20) continue;
+    const big = c.pop >= 1000000;
+    ctx.font = `${big ? 600 : 500} ${big ? 12.5 : 11.5}px 'IBM Plex Sans', system-ui, sans-serif`;
+    const w = ctx.measureText(c.n).width, bx = [x - 4, y - 8, x + 8 + w, y + 8];
+    if (boxes.some(b => bx[0] < b[2] && bx[2] > b[0] && bx[1] < b[3] && bx[3] > b[1])) continue;
+    boxes.push(bx);
+    ctx.fillStyle = "#f2f4f7"; ctx.strokeStyle = "#0a1119"; ctx.lineWidth = 1.5;
+    ctx.beginPath(); c.cap ? ctx.rect(x - 3, y - 3, 6, 6) : ctx.arc(x, y, big ? 3.2 : 2.5, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.lineWidth = 3; ctx.strokeStyle = "rgba(10,17,25,.85)"; ctx.strokeText(c.n, x + 6, y);
+    ctx.fillStyle = big ? "#ffffff" : "#d8e0e8"; ctx.fillText(c.n, x + 6, y);
+  }
+}
+
+function drawReports(sx, sy) {
+  for (const r of D.reports) {
+    const x = sx(r.x), y = sy(r.y);
+    ctx.lineWidth = 1.5; ctx.strokeStyle = "#0a1119";
+    if (r.t === "torn") { ctx.fillStyle = "#ff2020"; ctx.beginPath(); ctx.moveTo(x, y - 7); ctx.lineTo(x + 6.5, y + 5); ctx.lineTo(x - 6.5, y + 5); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+    else if (r.t === "wind") { ctx.fillStyle = "#3d7cff"; ctx.fillRect(x - 4.5, y - 4.5, 9, 9); ctx.strokeRect(x - 4.5, y - 4.5, 9, 9); }
+    else { ctx.fillStyle = "#26c447"; ctx.beginPath(); ctx.arc(x, y, 5, 0, 7); ctx.fill(); ctx.stroke(); }
+  }
+}
+
+// ---------- animation loop
+let rafOn = false;
+function needsLoop() { return S.playing || fade < 1 || (S.show.alerts && !reduceMotion && (D.alerts.some(a => a.poly && PULSE.has(a.event)) || S.selected)); }
+function loop(now) {
+  rafOn = false;
+  const fl = frameList();
+  if (S.playing && fl.length > 1) {
+    const dwell = +$("spd").value * (S.frame === fl.length - 1 ? 3 : 1);
+    if (now - lastStep > dwell) { step(1, true); lastStep = now; }
+  }
+  if (fade < 1) fade = Math.min(1, fade + (reduceMotion ? 1 : 0.12));
+  draw(now);
+  if (needsLoop()) kick();
+}
+function kick() { if (!rafOn) { rafOn = true; requestAnimationFrame(loop); } }
+function step(d, wrapAround) {
+  const n = frameList().length; if (!n) return;
+  S.prevFrame = S.frame;
+  S.frame = wrapAround ? (S.frame + d + n) % n : Math.max(0, Math.min(n - 1, S.frame + d));
+  fade = S.prevFrame === S.frame ? 1 : 0; syncSlider(); kick();
+  if (S.mode === "hrrr") loadProbe(D.meta.hrrr.hours[S.frame].fh);
+}
+function togglePlay(on = !S.playing) {
+  S.playing = on && frameList().length > 1;
+  $("play").setAttribute("aria-label", S.playing ? "Pause" : "Play");
+  $("playicon").innerHTML = S.playing ? '<path d="M3 2h4v12H3zM9 2h4v12H9z"/>' : '<path d="M4 2l10 6-10 6z"/>';
+  lastStep = performance.now(); kick();
+}
+$("play").onclick = () => togglePlay();
+$("prev").onclick = () => { togglePlay(false); step(-1); };
+$("next").onclick = () => { togglePlay(false); step(1); };
+$("slider").oninput = e => { togglePlay(false); S.prevFrame = S.frame; S.frame = +e.target.value; fade = 1; syncSlider(); draw(); if (S.mode === "hrrr") loadProbe(D.meta.hrrr.hours[S.frame].fh); };
+addEventListener("keydown", e => {
+  if (e.target.matches("input[type=search], select")) return;
+  if (e.key === " ") { e.preventDefault(); togglePlay(); }
+  else if (e.key === "ArrowLeft") { togglePlay(false); step(-1); }
+  else if (e.key === "ArrowRight") { togglePlay(false); step(1); }
+});
+
+function syncSlider() {
+  const fl = frameList(), sl = $("slider");
+  sl.max = Math.max(0, fl.length - 1); sl.value = S.frame;
+  const bars = $("bars");
+  if (bars.childElementCount !== fl.length) bars.innerHTML = fl.map(() => "<i></i>").join("");
+  [...bars.children].forEach((b, i) => { b.className = i === S.frame ? "on" : i < S.frame ? "past" : ""; });
+  const f = fl[S.frame];
+  if (S.mode === "radar") {
+    $("vk").textContent = "NEXRAD base reflectivity";
+    $("vv").textContent = f ? fmtLocal(f.t) : "—";
+    const lag = fl.length - 1 - S.frame;
+    $("vs").textContent = f ? `${fmtZ(f.t)} · ${lag === 0 ? "Latest scan" : `${lag * 5} min before latest`}` : "";
+    $("lab0").textContent = fl[0] ? fmtZ(fl[0].t) : ""; $("lab1").textContent = fl.at(-1) ? fmtZ(fl.at(-1).t) : "";
+  } else if (S.mode === "hrrr") {
+    $("vk").textContent = "HRRR · " + FIELD_INFO[S.field].name;
+    $("vv").textContent = f ? fmtLocal(f.valid) : "—";
+    const ahead = S.frame === 0 ? "Now" : `+${S.frame} h`;
+    $("vs").textContent = f ? `${ahead} · valid ${fmtZ(f.valid)} · HRRR ${fmtZ(D.meta.hrrr.cycle)} run F${String(f.fh).padStart(2, "0")}` : "";
+    $("lab0").textContent = "Now"; $("lab1").textContent = fl.length ? `+${fl.length - 1} h` : "";
+  } else {
+    $("vk").textContent = "No base layer"; $("vv").textContent = "Overlays only"; $("vs").textContent = ""; $("lab0").textContent = $("lab1").textContent = "";
+  }
+}
+
+// ---------- controls
+function setMode(m) {
+  S.mode = m; ["radar", "hrrr", "none"].forEach(x => $("m-" + x).setAttribute("aria-pressed", x === m));
+  $("fields").hidden = m !== "hrrr";
+  const fl = frameList();
+  S.frame = m === "radar" ? Math.max(0, fl.length - 1) : 0; S.prevFrame = S.frame; fade = 1;
+  if (m === "hrrr") { prefetchField(S.field); loadProbe(D.meta.hrrr.hours[0].fh); }
+  togglePlay(m !== "none" && !reduceMotion && S.playing);
+  legend(); syncSlider(); draw();
+}
+["radar", "hrrr", "none"].forEach(m => $("m-" + m).onclick = () => setMode(m));
+["terrain", "flat"].forEach(b => $("b-" + b).onclick = () => { S.base = b; ["terrain", "flat"].forEach(x => $("b-" + x).setAttribute("aria-pressed", x === b)); draw(); });
+
+function buildFields() {
+  const hrs = D.meta.hrrr.hours;
+  $("fields").innerHTML = FIELD_ORDER.filter(f => D.meta.hrrr.layers.includes(f)).map(f => {
+    const mx = Math.max(...hrs.map(h => h.max?.[f] ?? -Infinity));
+    const peak = isFinite(mx) ? `peak ${f === "stp" ? mx.toFixed(1) : Math.round(mx)}` : FIELD_INFO[f].unit;
+    return `<button data-f="${f}" aria-pressed="${f === S.field}"><span>${FIELD_INFO[f].name}</span><span class="u">${peak}</span></button>`;
+  }).join("");
+  $("fields").onclick = e => {
+    const b = e.target.closest("button"); if (!b) return;
+    S.field = b.dataset.f; [...$("fields").children].forEach(x => x.setAttribute("aria-pressed", x === b));
+    prefetchField(S.field); legend(); syncSlider(); draw();
+  };
+}
+
+function legend() {
+  let html = "", unit = "";
+  if (S.mode === "radar") { html = scaleHtml(RADAR_SCALE, "dBZ", "Base reflectivity (dBZ) · light rain 20 · heavy rain 45 · hail likely 60+"); unit = "dBZ"; }
+  else if (S.mode === "hrrr") {
+    const sc = D.meta.hrrr.scales[S.field]; const fi = FIELD_INFO[S.field]; unit = fi.unit;
+    const cap = { stp: "STP ≥1 favors significant (EF2+) tornadoes when storms are surface-based", mlcape: "Instability for the lowest 90 mb mixed parcel", shr6: "≥40 kt supports supercells", srh1: "≥100 m²/s² supports low-level mesocyclones", uh: "Rotating-updraft tracks in the model; ≥75 marks strong rotation" }[S.field];
+    html = scaleHtml(sc, fi.unit, cap || fi.name + " (" + fi.unit + ")");
+  } else html = '<div class="lcap">No base layer selected.</div>';
+  html += `<div class="keyrow" style="margin-top:6px"><span><i style="background:#ff2020;clip-path:polygon(50% 0,100% 100%,0 100%)"></i>Tornado</span><span><i style="background:#3d7cff"></i>Wind</span><span><i style="background:#26c447;border-radius:50%"></i>Hail</span></div>`;
+  $("legend").innerHTML = html; $("legunit").textContent = unit;
+}
+
+$("op").oninput = e => { S.opacity = e.target.value / 100; $("opv").textContent = e.target.value + "%"; draw(); };
+$("satsel").onchange = e => { S.satKind = e.target.value; if (S.satKind !== "ir" && !S.show.sat) { S.show.sat = true; $("t-sat").checked = true; } draw(); };
+$("spcsel").onchange = e => { S.spc = e.target.value; spcKey(); draw(); };
+[["t-roads", "roads"], ["t-cities", "cities"], ["t-water", "water"], ["t-spc", "spc"], ["t-alerts", "alerts"], ["t-sat", "sat"], ["t-obs", "obs"], ["t-rpts", "rpts"], ["t-ww", "ww"], ["t-cty", "cty"]]
+  .forEach(([id, k]) => $(id).onchange = e => { S.show[k] = e.target.checked; draw(); kick(); });
+
+function spcKey() {
+  const fc = D.spc[S.spc]; const feats = (fc?.features || []).filter(f => !/^CIG/.test(f.properties.LABEL));
+  if (!feats.length) { $("spckey").innerHTML = '<span>No areas in this outlook.</span>'; return; }
+  const p = feats[0].properties;
+  $("spckey").innerHTML = feats.map(f => `<span><i style="background:${f.properties.fill};border:1px solid ${f.properties.stroke}"></i>${f.properties.LABEL2.replace(/ Risk$/, "").replace("General Thunderstorms", "General t-storms")}</span>`).join("") +
+    `<span style="flex-basis:100%;font:11px var(--f-mono);color:var(--ink-3)">Valid ${fmtZ(p.VALID_ISO)}–${fmtZ(p.EXPIRE_ISO)} · ${p.FORECASTER}</span>`;
+}
+
+function counts() {
+  $("n-alerts").textContent = D.alerts.length; $("n-obs").textContent = D.metars.length;
+  $("n-rpts").textContent = D.reports.length;
+  const sl = (D.meta.sat || []).at(-1); $("n-sat").textContent = sl ? fmtZ(sl.t) : "n/a";
+  if (sl && !sl.vis) { const o = $("satsel").querySelector('option[value="vis"]'); o.disabled = true; o.textContent += " — night now"; } $("n-ww").textContent = (D.watches.features?.length || 0) + (D.mds.features?.length || 0);
+}
+
+// ---------- alerts panel
+function visibleAlerts() {
+  const q = S.filter.toLowerCase();
+  return D.alerts.filter(a => (S.chip === "all" || (S.chip === "warn" && /Warning|Emergency/.test(a.event)) || (S.chip === "watch" && /Watch/.test(a.event)) || (S.chip === "adv" && /Advisory|Statement|Outlook|Alert/.test(a.event)) || (S.chip === "land" && a.fips.length)) &&
+    (!q || (a.event + " " + a.area + " " + a.sender).toLowerCase().includes(q)));
+}
+function buildAlertsUI() {
+  const w = D.alerts.filter(a => /Warning|Emergency/.test(a.event)).length, wa = D.alerts.filter(a => /Watch/.test(a.event)).length;
+  $("summary").innerHTML = `<div><b style="color:var(--warn)">${w}</b><span>Warnings</span></div><div><b style="color:var(--watch)">${wa}</b><span>Watches</span></div><div><b style="color:var(--adv)">${D.alerts.length - w - wa}</b><span>Other</span></div>`;
+  $("chips").innerHTML = [["all", "All"], ["warn", "Warnings"], ["watch", "Watches"], ["adv", "Advisories"], ["land", "Land only"]].map(([k, l]) => `<button class="chip" data-c="${k}" aria-pressed="${k === S.chip}">${l}</button>`).join("");
+  $("chips").onclick = e => { const b = e.target.closest(".chip"); if (!b) return; S.chip = b.dataset.c; [...$("chips").children].forEach(x => x.setAttribute("aria-pressed", x === b)); renderList(); draw(); };
+  $("filt").oninput = e => { S.filter = e.target.value; renderList(); draw(); };
+  renderList();
+}
+function renderList() {
+  const vis = visibleAlerts(); $("hz-count").textContent = `${vis.length} shown`;
+  $("alist").innerHTML = vis.slice(0, 250).map((a, i) => `<button class="acard" data-i="${D.alerts.indexOf(a)}" aria-current="${S.selected === a}"><span class="stripe" style="background:${a.color}"></span><span class="ev">${esc(a.event)}</span><span class="ar">${esc(a.area || "")}</span><span class="tm">${a.ends ? "until " + fmtDate(a.ends) : ""} · ${esc((a.sender || "").replace("NWS ", ""))}</span></button>`).join("") || '<p class="note">No alerts match.</p>';
+}
+$("alist").onclick = e => { const b = e.target.closest(".acard"); if (b) select(D.alerts[+b.dataset.i], true); };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function select(a, zoomTo) {
+  S.selected = a; $("detailsec").hidden = !a;
+  if (a) {
+    $("detail").innerHTML = `<h3 style="color:${a.color}">${esc(a.event)}</h3>
+      <div class="meta"><span>Severity</span><span>${esc(a.severity || "—")} · ${esc(a.urgency || "")} · ${esc(a.certainty || "")}</span>
+      <span>Begins</span><span>${fmtDate(a.onset)}</span><span>Ends</span><span>${fmtDate(a.ends)}</span><span>Issued by</span><span>${esc(a.sender || "")}</span></div>
+      <div style="font-size:12.5px;color:var(--ink-2)">${esc(a.area || "")}</div>
+      <pre>${esc(a.desc || "")}${a.instr ? "\n\n" + esc(a.instr) : ""}</pre>
+      <button class="x" id="closed">Close</button>`;
+    $("closed").onclick = () => select(null);
+    if (zoomTo && a.b) zoomToBounds(a.b);
+    $("detailsec").scrollIntoView({ block: "nearest", behavior: reduceMotion ? "auto" : "smooth" });
+    document.querySelector(".rail.right").classList.add("show");
+  }
+  renderList(); kick(); draw();
+}
+
+// ---------- probe (hover readout)
+async function loadProbe(fh) {
+  if (probeCache[fh]) return probeCache[fh];
+  // Grids ship as gzip + base64 text; decode back to little-endian Int16.
+  probeCache[fh] = fetch(`data/hrrr/probe_h${String(fh - D.meta.hrrr.hours[0].fh).padStart(2, "0")}.txt?v=${D.meta.built}`).then(r => r.text())
+    .then(t => { const bin = Uint8Array.from(atob(t.trim()), c => c.charCodeAt(0)); return new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer(); })
+    .then(b => new Int16Array(b)).catch(() => null);
+  return probeCache[fh];
+}
+function hideProbe() { $("probe").hidden = true; if (S.hover) { S.hover = null; draw(); } }
+let probeTick = 0;
+canvas.addEventListener("pointermove", async e => {
+  if (e.buttons) return;
+  const tick = ++probeTick, r = canvas.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+  const bx = (mx - S.t.x) / S.t.k, by = (my - S.t.y) / S.t.k;
+  if (bx < 0 || by < 0 || bx > BW || by > BH) return hideProbe();
+  const [lon, lat] = proj.invert([bx, by]);
+  const c = countyAt(bx, by);
+  let rows = `<div class="r"><span>Lat/Lon</span><span>${lat.toFixed(2)}, ${lon.toFixed(2)}</span></div>`;
+  if (S.mode === "hrrr") {
+    const h = D.meta.hrrr.hours[S.frame], arr = await loadProbe(h.fh); if (tick !== probeTick) return;
+    if (arr) {
+      const [PW, PH] = D.meta.hrrr.probe, ix = Math.floor(bx / BW * PW), iy = Math.floor(by / BH * PH), n = PW * PH;
+      if (ix >= 0 && iy >= 0 && ix < PW && iy < PH) {
+        const L = D.meta.hrrr.layers, get = f => { const v = arr[L.indexOf(f) * n + iy * PW + ix]; return v === -32768 ? null : v / D.meta.hrrr.probeScale[f]; };
+        const show = [S.field, ...["stp", "mlcape", "srh1", "shr6", "t2", "td2"].filter(f => f !== S.field)].slice(0, 6);
+        show.forEach(f => { const v = get(f); if (v != null) rows += `<div class="r"><span>${FIELD_INFO[f].name.replace("Significant tornado parameter", "STP").replace("storm-relative helicity", "SRH").replace("Mixed-layer", "ML")}</span><span>${FIELD_INFO[f].fmt(v)}</span></div>`; });
+      }
+    }
+  }
+  const near = nearestObs(mx, my);
+  if (near) rows += `<div class="r"><span>${near.id}</span><span>${Math.round(cToF(near.t))}°/${near.td != null ? Math.round(cToF(near.td)) : "–"}° ${near.wd ?? ""}${near.ws != null ? "@" + near.ws + "kt" : ""}</span></div>`;
+  const rep = nearestReport(mx, my);
+  if (rep) rows += `<div class="r"><span>${{ torn: "Tornado", wind: "Wind", hail: "Hail" }[rep.t]} ${rep.time}Z</span><span>${rep.t === "hail" ? (+rep.mag / 100).toFixed(2) + '"' : rep.mag}</span></div>`;
+  let al = "";
+  if (c && S.show.alerts) {
+    const hits = D.alerts.filter(a => (a.fips.includes(c.id) || (a.poly && a.b && bx >= a.b[0][0] && bx <= a.b[1][0] && by >= a.b[0][1] && by <= a.b[1][1] && inPath(a.path, bx, by))));
+    if (hits.length) al = `<div class="al">${hits.slice(0, 5).map(a => `<div><i style="background:${a.color}"></i>${esc(a.event)}</div>`).join("")}</div>`;
+  }
+  const p = $("probe");
+  p.innerHTML = `<div class="h">${c ? esc(c.name) + " Co., " + esc(c.st) : lat > 0 ? "Offshore / outside U.S." : ""}</div>${rows}${al}`;
+  p.hidden = false;
+  const pw = p.offsetWidth, ph = p.offsetHeight;
+  p.style.left = Math.min(mx + 16, cw - pw - 8) + "px"; p.style.top = Math.min(my + 16, ch - ph - 8) + "px";
+  S.hover = [mx, my]; if (!rafOn) draw();
+});
+canvas.addEventListener("pointerleave", hideProbe);
+function inPath(p, x, y) { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); const r = ctx.isPointInPath(p, x, y); ctx.restore(); return r; }
+function nearestObs(mx, my) { if (!S.show.obs) return null; let best = null, bd = 144; for (const o of D.metars) { if (o.t == null) continue; const dx = S.t.x + o.x * S.t.k - mx, dy = S.t.y + o.y * S.t.k - my, d = dx * dx + dy * dy; if (d < bd) { bd = d; best = o; } } return best; }
+function nearestReport(mx, my) { if (!S.show.rpts) return null; let best = null, bd = 100; for (const o of D.reports) { const dx = S.t.x + o.x * S.t.k - mx, dy = S.t.y + o.y * S.t.k - my, d = dx * dx + dy * dy; if (d < bd) { bd = d; best = o; } } return best; }
+
+canvas.addEventListener("click", e => {
+  const r = canvas.getBoundingClientRect(), bx = (e.clientX - r.left - S.t.x) / S.t.k, by = (e.clientY - r.top - S.t.y) / S.t.k;
+  if (!S.show.alerts) return;
+  const c = countyAt(bx, by);
+  const hit = D.alerts.filter(a => visibleAlerts().includes(a)).find(a => (a.poly && a.path && inPath(a.path, bx, by)) || (c && a.fips.includes(c.id)));
+  select(hit || null, false);
+});
+
+new ResizeObserver(() => { const keep = S.t; resize(); }).observe(wrap);
+boot().catch(err => { $("loading").textContent = "Could not load map data: " + err.message; console.error(err); });
+})();
+</script>
