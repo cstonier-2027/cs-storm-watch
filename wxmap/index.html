@@ -156,6 +156,30 @@ canvas#map { position: absolute; inset: 0; width: 100%; height: 100%; display: b
 .summary b { display: block; font: 600 22px/1 var(--f-display); font-variant-numeric: tabular-nums; }
 .summary span { font: 10.5px var(--f-mono); color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em; }
 .note { font-size: 12px; color: var(--ink-3); }
+/* Forecast card: written by forecast.py on every refresh. */
+.fcard { --lv: var(--ink-3); border: 1px solid var(--line); border-left: 4px solid var(--lv); border-radius: 6px; background: var(--panel-2); padding: 10px 12px; display: grid; gap: 8px; }
+.fcard .fhead { font: 600 19px/1.15 var(--f-display); letter-spacing: .02em; color: var(--ink); }
+.fcard .fsum { margin: 0; font-size: 13px; color: var(--ink-2); }
+.fcard details summary { cursor: pointer; font: 500 12px var(--f-mono); color: var(--accent); list-style: none; padding: 2px 0; }
+.fcard details summary::-webkit-details-marker { display: none; }
+.fcard details summary::before { content: "▸ "; }
+.fcard details[open] summary::before { content: "▾ "; }
+.fsec { margin-top: 10px; }
+.fsec h3 { margin: 0 0 4px; font: 600 12px var(--f-display); letter-spacing: .12em; text-transform: uppercase; display: flex; align-items: center; gap: 6px; }
+.fsec h3 i { width: 8px; height: 8px; border-radius: 50%; background: var(--t); }
+.fsec ul { margin: 0; padding-left: 16px; display: grid; gap: 4px; font-size: 12.5px; color: var(--ink-2); }
+.fout { display: grid; grid-template-columns: auto auto minmax(0,1fr); gap: 6px 8px; align-items: baseline; font-size: 12.5px; color: var(--ink-2); }
+.fout b { font: 600 12px var(--f-display); letter-spacing: .08em; text-transform: uppercase; color: var(--ink); }
+.fout em { font: 500 10.5px var(--f-mono); font-style: normal; border-radius: 3px; padding: 1px 5px; color: #0a1119; background: var(--c); }
+.fnote { font-size: 11px; color: var(--ink-3); margin: 10px 0 0; }
+.fcbtn { display: none; font: 500 11.5px var(--f-mono); color: var(--ink); background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+.fcbtn[aria-pressed="true"] { border-color: var(--accent); }
+@media (max-width: 1180px) and (min-width: 861px) {
+  .fcbtn { display: inline-block; }
+  /* The hazards rail slides over the map instead of taking a column. */
+  .body { position: relative; }
+  .rail.right.show { position: absolute; top: 0; right: 0; bottom: 0; width: 340px; z-index: 5; box-shadow: -12px 0 30px rgba(0,0,0,.45); }
+}
 .note a { color: var(--accent); }
 
 @media (max-width: 1180px) { .body { grid-template-columns: 252px minmax(0,1fr); } .rail.right { display: none; } .rail.right.show { display: flex; } }
@@ -164,6 +188,8 @@ canvas#map { position: absolute; inset: 0; width: 100%; height: 100%; display: b
   .app { height: auto; }
   .body { grid-template-columns: minmax(0, 1fr); }
   .stage { order: -1; height: 72vh; min-height: 420px; }
+  .rail.right { order: 0; }
+  .rail:not(.right) { order: 1; }
   .rail, .rail.right { display: flex; border: 0; border-top: 1px solid var(--line); overflow: visible; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
   .timeline { grid-template-columns: auto auto auto minmax(0,1fr); }
   .speed { display: none; }
@@ -176,6 +202,7 @@ canvas#map { position: absolute; inset: 0; width: 100%; height: 100%; display: b
 <div class="app">
   <header class="top">
     <div class="brand"><h1>CS<i>'s</i> Storm <b>Watch</b></h1><span>CONUS · NWS / SPC / NCEP</span></div>
+    <button class="fcbtn" id="fcbtn" aria-pressed="false">Forecast</button>
     <div class="stamps" id="stamps"></div>
   </header>
   <div class="body">
@@ -260,6 +287,14 @@ canvas#map { position: absolute; inset: 0; width: 100%; height: 100%; display: b
     </main>
 
     <aside class="rail right" aria-label="Active hazards">
+      <section class="sec" id="fcsec" hidden>
+        <h2>Forecast <small id="fc-when"></small></h2>
+        <div class="fcard" id="fcard">
+          <div class="fhead" id="fc-head"></div>
+          <p class="fsum" id="fc-sum"></p>
+          <details id="fc-more"><summary>Full forecast</summary><div id="fc-body"></div></details>
+        </div>
+      </section>
       <section class="sec">
         <h2>Active hazards <small id="hz-count"></small></h2>
         <div class="summary" id="summary"></div>
@@ -363,6 +398,7 @@ async function boot() {
     .map(n => j(`data/base/${n}.json`).catch(() => n === "cities" ? [] : { features: [] })));
   if (!Array.isArray(meta.sat)) meta.sat = [];
   D = { meta, states, counties, alerts, spc, reports, metars, watches, mds, roads, cities, lakes, rivers, neighbors };
+  buildForecastUI();
   imgs.terrain = loadImg("data/base/terrain.jpg").then(i => { imgs.terrain = i; draw(); });
   const f = meta.frame, k = BW / (f.x1 - f.x0);
   BH = Math.round((f.y1 - f.y0) * k);
@@ -535,7 +571,7 @@ function hrrrImg(field, fh) {
 function prefetchField(field) { D.meta.hrrr.hours.forEach(h => hrrrImg(field, h.fh)); }
 
 function draw(now = performance.now()) {
-  if (!proj) return;
+  if (!proj || !paths.rivers) return;  // the terrain image can arrive before the paths are built
   const t = S.t, k = t.k;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.fillStyle = "#0b1a2c"; ctx.fillRect(0, 0, cw, ch);
@@ -828,6 +864,27 @@ function counts() {
   const sl = (D.meta.sat || []).at(-1); $("n-sat").textContent = sl ? fmtZ(sl.t) : "n/a";
   if (sl && !sl.vis) { const o = $("satsel").querySelector('option[value="vis"]'); o.disabled = true; o.textContent += " — night now"; } $("n-ww").textContent = (D.watches.features?.length || 0) + (D.mds.features?.length || 0);
 }
+
+// ---------- forecast panel
+const LEVEL_COLOR = { HIGH: "#ff5cf0", MDT: "#ff4d4d", ENH: "#ffa040", SLGT: "#ffe066", MRGL: "#7fdd8a",
+  flood: "#5ab0ff", TSTM: "#9aabbd", none: "#66788c" };
+const TONE_COLOR = { warn: "var(--warn)", watch: "var(--watch)", adv: "var(--adv)", info: "var(--accent)" };
+async function buildForecastUI() {
+  const f = await j("data/forecast.json").catch(() => null);
+  if (!f) return;
+  $("fcsec").hidden = false;
+  $("fcard").style.setProperty("--lv", LEVEL_COLOR[f.level] || LEVEL_COLOR.none);
+  $("fc-when").textContent = `${f.issuedText} → ${f.through}`;
+  $("fc-head").textContent = f.headline;
+  $("fc-sum").textContent = f.summary;
+  const secs = f.sections.map(s => `<div class="fsec" style="--t:${TONE_COLOR[s.tone] || TONE_COLOR.info}"><h3><i></i>${esc(s.title)}</h3><ul>${s.items.map(i => `<li>${esc(i)}</li>`).join("")}</ul></div>`).join("");
+  const outl = f.outlook.length ? `<div class="fsec"><h3>Coming days</h3><div class="fout">${f.outlook.map(o => `<b>${esc(o.title)}</b><em style="--c:${LEVEL_COLOR[o.cat] || LEVEL_COLOR.none}">${esc(o.cat)}</em><span>${esc(o.text)}</span>`).join("")}</div></div>` : "";
+  $("fc-body").innerHTML = secs + outl + f.notes.map(n => `<p class="fnote">${esc(n)}</p>`).join("");
+}
+$("fcbtn").onclick = () => {
+  const r = document.querySelector(".rail.right"), on = !r.classList.contains("show");
+  r.classList.toggle("show", on); $("fcbtn").setAttribute("aria-pressed", on);
+};
 
 // ---------- alerts panel
 function visibleAlerts() {

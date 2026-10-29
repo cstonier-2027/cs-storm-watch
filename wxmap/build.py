@@ -21,6 +21,8 @@ import eccodes
 import numpy as np
 from PIL import Image
 
+import forecast
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "data")
 UA = "CS Storm Watch map builder (personal, non-commercial)"
@@ -414,12 +416,18 @@ def build_hrrr(now):
     jj, ii, valid = lcc_index(first["grid"])
     pj, pi = jj[PROBE // 2::PROBE, PROBE // 2::PROBE][:PH, :PW], ii[PROBE // 2::PROBE, PROBE // 2::PROBE][:PH, :PW]
     pvalid = valid[PROBE // 2::PROBE, PROBE // 2::PROBE][:PH, :PW]
+    with open(os.path.join(OUT, "states-10m.json")) as fh:
+        st, names = forecast.state_raster(json.load(fh), (X0, X1, Y0, Y1), W, H)
 
     def one(fh):
         done = os.path.join(OUT, "hrrr", f"summary_{cycle:%Y%m%d%H}_f{fh:02d}.json")
         if os.path.exists(done):
             return json.load(open(done))
-        f = first if fh == start else fetch_hrrr_fields(cycle, fh)
+        try:
+            f = first if fh == start else fetch_hrrr_fields(cycle, fh)
+        except Exception as e:  # skip one bad hour instead of losing the whole build
+            print("FAILED HRRR f%02d" % fh, repr(e))
+            return None
         d = derive(f)
         for k in RASTER:
             v = d[k][jj, ii]
@@ -432,15 +440,16 @@ def build_hrrr(now):
             v = np.where(pvalid, d[k][pj, pi] * PROBE_SCALE[k], -32768)
             buf += np.clip(np.rint(v), -32768, 32767).astype("<i2").tobytes()
         save(f"hrrr/probe_h{fh - start:02d}.txt", base64.b64encode(gzip.compress(bytes(buf), 9)).decode())  # artifacts serve text, not .bin
-        mx = {k: float(np.nanmax(d[k][jj, ii][valid])) for k in ("stp", "mlcape", "srh1", "shr6", "uh", "refc")}
+        fc = forecast.hour_stats(d, jj, ii, valid, st, names, (X0, X1, Y0, Y1), PROBE)
+        mx = fc["mx"]  # US only, so storms over Mexico or the Gulf don't dominate
         print("f%02d" % fh, {k: round(v, 1) for k, v in mx.items()})
-        res = {"fh": fh, "valid": (cycle + dt.timedelta(hours=fh)).strftime("%Y-%m-%dT%H:%MZ"), "max": mx}
+        res = {"fh": fh, "valid": (cycle + dt.timedelta(hours=fh)).strftime("%Y-%m-%dT%H:%MZ"), "max": mx, "fc": fc}
         json.dump(res, open(done, "w"))
         return res
 
     os.makedirs(os.path.join(OUT, "hrrr"), exist_ok=True)
     with cf.ThreadPoolExecutor(2) as ex:
-        hours = sorted(ex.map(one, fhs), key=lambda h: h["fh"])
+        hours = sorted((h for h in ex.map(one, fhs) if h), key=lambda h: h["fh"])
     return {"cycle": cycle.strftime("%Y-%m-%dT%H:%MZ"), "hours": hours, "layers": LAYERS,
             "probeScale": PROBE_SCALE, "probe": [PW, PH],
             "scales": {k: SCALES[k] for k in RASTER}}
@@ -479,7 +488,16 @@ def main():
     save("mds.json", json.dumps(m, separators=(",", ":")))
     meta["radar"] = res["radar"] or []
     meta["sat"] = res["sat"] or []
+    hour_stats = [h.pop("fc", None) for h in hrrr["hours"]]
     meta["hrrr"] = hrrr
+    try:
+        with open(os.path.join(OUT, "base", "cities.json")) as fh:
+            cities = json.load(fh)
+        fc = forecast.compose(now, res["spc"] or {}, res["alerts"] or [], res["reports"] or [], w, m,
+                              hrrr, hour_stats, cities, (PW, PH), (X0, X1, Y0, Y1))
+        save("forecast.json", json.dumps(fc, indent=1))
+    except Exception as e:  # the map still publishes without a forecast
+        print("FAILED forecast", repr(e))
     save("meta.json", json.dumps(meta, indent=1))
     # Paths for the Artifact publish (relative to this folder).
     files = sorted(os.path.relpath(os.path.join(dp, f), HERE) for dp, _, fs in os.walk(OUT) for f in fs
