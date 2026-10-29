@@ -1,5 +1,5 @@
 #!/bin/bash
-# Builds "CS's Storm Watch.app" into the Storm Watch folder (next to wxmap/).
+# Builds "CS's Storm Watch.app" into the Storm Watch folder. The app shows the live Cloudflare site.
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(dirname "$HERE")"
@@ -11,7 +11,7 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 swiftc -O -o "$APP/Contents/MacOS/CSStormWatch" "$HERE/main.swift" \
-  -framework Cocoa -framework WebKit -framework UniformTypeIdentifiers
+  -framework Cocoa -framework WebKit
 
 "$PY" "$HERE/make_icon.py" "$WORK/icon.png"
 mkdir -p "$WORK/AppIcon.iconset"

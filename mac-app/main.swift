@@ -1,49 +1,16 @@
-// CS's Storm Watch for macOS: a native window around the map in the Storm Watch folder.
-// Files are served through a custom URL scheme so the page can fetch its data files,
-// and the page reloads itself when the 30-minute refresh writes new data.
+// CS's Storm Watch for macOS: a native window around the live map site.
+// GitHub refreshes the site every 30 minutes; the app reloads when meta.json's build time changes.
 import Cocoa
 import WebKit
-import UniformTypeIdentifiers
 
-let scheme = "stormwatch"
-
-func siteRoot() -> URL? {
-    let fm = FileManager.default
-    let beside = Bundle.main.bundleURL.deletingLastPathComponent().appendingPathComponent("wxmap")
-    let home = fm.homeDirectoryForCurrentUser.appendingPathComponent("Storm Watch/wxmap")
-    return [beside, home].first { fm.fileExists(atPath: $0.appendingPathComponent("index.html").path) }
-}
-
-final class FolderSchemeHandler: NSObject, WKURLSchemeHandler {
-    let root: URL
-    init(root: URL) { self.root = root }
-
-    func webView(_ webView: WKWebView, start task: WKURLSchemeTask) {
-        guard let url = task.request.url else { return }
-        var path = url.path.isEmpty || url.path == "/" ? "/index.html" : url.path
-        path = path.removingPercentEncoding ?? path
-        let file = root.appendingPathComponent(String(path.dropFirst())).standardizedFileURL
-        guard file.path.hasPrefix(root.standardizedFileURL.path), let data = try? Data(contentsOf: file) else {
-            task.didReceive(HTTPURLResponse(url: url, statusCode: 404, httpVersion: "HTTP/1.1", headerFields: nil)!)
-            task.didFinish()
-            return
-        }
-        let mime = UTType(filenameExtension: file.pathExtension)?.preferredMIMEType ?? "application/octet-stream"
-        let headers = ["Content-Type": mime, "Content-Length": "\(data.count)", "Cache-Control": "no-store"]
-        task.didReceive(HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: headers)!)
-        task.didReceive(data)
-        task.didFinish()
-    }
-
-    func webView(_ webView: WKWebView, stop task: WKURLSchemeTask) {}
-}
+let site = URL(string: "https://cs-storm-watch.csstormwatch.workers.dev/")!
 
 final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
     var window: NSWindow!
     var web: WKWebView!
-    var lastBuilt: Date?
+    var lastBuilt: String?
+    var loadFailed = false
     var timer: Timer?
-    var root: URL?
 
     func applicationDidFinishLaunching(_ note: Notification) {
         NSApp.appearance = NSAppearance(named: .darkAqua)
@@ -58,9 +25,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
         window.setFrameAutosaveName("StormwatchMain")
         if !window.setFrameUsingName("StormwatchMain") { window.center() }
 
-        root = siteRoot()
         let config = WKWebViewConfiguration()
-        if let root { config.setURLSchemeHandler(FolderSchemeHandler(root: root), forURLScheme: scheme) }
+        config.websiteDataStore = .nonPersistent()  // always fetch fresh data
         web = WKWebView(frame: window.contentView!.bounds, configuration: config)
         web.autoresizingMask = [.width, .height]
         web.navigationDelegate = self
@@ -68,33 +34,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
         window.contentView!.addSubview(web)
         window.makeKeyAndOrderFront(nil)
 
-        if root == nil {
-            web.loadHTMLString("""
-              <body style="background:#0a1119;color:#e6edf3;font:15px -apple-system;display:grid;place-items:center;height:100vh;margin:0">
-              <div style="max-width:420px;text-align:center"><h2>Map files not found</h2>
-              <p>CS's Storm Watch looks for <b>Storm Watch/wxmap</b> in your home folder, or a <b>wxmap</b> folder next to this app.</p></div></body>
-              """, baseURL: nil)
-            return
-        }
-        lastBuilt = builtDate()
-        web.load(URLRequest(url: URL(string: "\(scheme)://app/index.html")!))
-        // Reload when the background refresh publishes new data.
+        web.load(URLRequest(url: site))
         timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in self?.checkForNewData() }
     }
 
-    func builtDate() -> Date? {
-        guard let root else { return nil }
-        let meta = root.appendingPathComponent("data/meta.json")
-        return (try? FileManager.default.attributesOfItem(atPath: meta.path))?[.modificationDate] as? Date
+    // Reload when the site has a newer build (meta.json "built"), and after a failed load (e.g. offline at wake).
+    func checkForNewData() {
+        var req = URLRequest(url: site.appendingPathComponent("data/meta.json"))
+        req.cachePolicy = .reloadIgnoringLocalCacheData
+        URLSession.shared.dataTask(with: req) { [weak self] data, _, _ in
+            guard let data, let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let built = obj["built"] as? String else { return }
+            DispatchQueue.main.async {
+                guard let self else { return }
+                if self.lastBuilt == nil { self.lastBuilt = built; if self.loadFailed { self.reloadMap() }; return }
+                if built != self.lastBuilt || self.loadFailed { self.lastBuilt = built; self.reloadMap() }
+            }
+        }.resume()
     }
 
-    func checkForNewData() {
-        guard let d = builtDate(), d != lastBuilt else { return }
-        // Give the build a moment to finish writing images after meta.json lands.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
-            self?.lastBuilt = d
-            self?.web.reload()
-        }
+    func webView(_ webView: WKWebView, didFinish nav: WKNavigation!) { loadFailed = false }
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation nav: WKNavigation!, withError error: Error) {
+        loadFailed = true
+        webView.loadHTMLString("""
+          <body style="background:#0a1119;color:#e6edf3;font:15px -apple-system;display:grid;place-items:center;height:100vh;margin:0">
+          <div style="text-align:center"><h2>Can't reach the map</h2><p>Check your internet connection. It will retry every minute.</p></div></body>
+          """, baseURL: nil)
     }
 
     // Links to other sites (SPC, NWS) open in the default browser.
@@ -109,7 +74,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ app: NSApplication) -> Bool { true }
 
-    @objc func reloadMap() { web.reload() }
+    @objc func reloadMap() { web.load(URLRequest(url: site, cachePolicy: .reloadIgnoringLocalCacheData)) }
 
     func buildMenu() {
         let main = NSMenu()
