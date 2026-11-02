@@ -503,6 +503,17 @@ function stamps() {
 }
 
 // ---------- geometry
+// d3 reads a counter-clockwise ring as the whole globe minus that ring, and live feeds send some that way.
+function fixWinding(g) {
+  const big = r => d3.geoArea({ type: "Polygon", coordinates: [r] }) > 2 * Math.PI;
+  const poly = rings => rings.map((r, i) => big(r) === (i === 0) ? [...r].reverse() : r);
+  if (g?.type === "Feature") return { ...g, geometry: fixWinding(g.geometry) };
+  if (g?.type === "GeometryCollection") return { ...g, geometries: g.geometries.map(fixWinding) };
+  if (g?.type === "Polygon") return { ...g, coordinates: poly(g.coordinates) };
+  if (g?.type === "MultiPolygon") return { ...g, coordinates: g.coordinates.map(poly) };
+  return g;
+}
+
 function buildPaths() {
   const gp = d3.geoPath(proj);
   const P = g => new Path2D(gp(g) || "");
@@ -529,7 +540,7 @@ function buildPaths() {
   // Alerts: county-based use county shapes; storm-based use their own polygon.
   D.alerts.forEach(a => {
     a.color = alertColor(a.event); a.rank = RANK(a.event);
-    if (a.geom) { a.path = P(a.geom); a.b = gp.bounds(a.geom); a.poly = true; }
+    if (a.geom) { a.geom = fixWinding(a.geom); a.path = P(a.geom); a.b = gp.bounds(a.geom); a.poly = true; }
     else if (a.fips.length) {
       const p = new Path2D(); let b = [[1e9, 1e9], [-1e9, -1e9]];
       a.fips.forEach(id => { const c = paths.county[id]; if (!c) return; p.addPath(c.p); b = [[Math.min(b[0][0], c.b[0][0]), Math.min(b[0][1], c.b[0][1])], [Math.max(b[1][0], c.b[1][0]), Math.max(b[1][1], c.b[1][1])]]; });
@@ -537,8 +548,8 @@ function buildPaths() {
     }
   });
   D.alerts.sort((x, y) => x.rank - y.rank || (x.event < y.event ? -1 : 1));
-  for (const [kk, fc] of Object.entries(D.spc)) fc.features?.forEach(ft => ft.path = P(ft));
-  [D.watches, D.mds].forEach(fc => fc.features?.forEach(ft => ft.path = P(ft)));
+  for (const [kk, fc] of Object.entries(D.spc)) fc.features?.forEach(ft => ft.path = P(fixWinding(ft)));
+  [D.watches, D.mds].forEach(fc => fc.features?.forEach(ft => ft.path = P(fixWinding(ft))));
   D.metars.forEach(o => { const p = proj([o.lon, o.lat]); o.x = p[0]; o.y = p[1]; });
   D.reports.forEach(o => { const p = proj([o.lon, o.lat]); o.x = p[0]; o.y = p[1]; });
   // County-under-point lookup grid (base px buckets).
