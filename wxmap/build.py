@@ -30,9 +30,10 @@ UA = "CS Storm Watch map builder (personal, non-commercial)"
 
 # Web Mercator frame shared by every raster and the page's projection.
 R = 6378137.0
-X0, X1, Y0, Y1 = -14026255.0, -7347086.0, 2753408.0, 6446276.0
-W, H = 1400, 774          # model rasters
-RW, RH = 2000, 1106       # radar frames
+# Lon -134..-58, lat 20..54: the HRRR's whole domain, so model layers continue into Canada, Mexico and offshore.
+X0, X1, Y0, Y1 = -14916811.766, -6456530.466, 2273030.927, 7170156.294
+W, H = 1773, 1026         # model rasters
+RW, RH = 2533, 1466       # radar frames
 PROBE = 5                 # probe grid downsample factor
 PW, PH = W // PROBE, H // PROBE
 
@@ -246,6 +247,32 @@ def build_satellite(now):
     return frames
 
 
+def build_sat_wide(now):
+    """Latest GOES-East + GOES-West full-disk infrared over the wide basemap, in the same white-cloud style,
+    so clouds continue past the borders. IEM's map service only serves the newest scan (no time loop)."""
+    with open(os.path.join(OUT, "base", "terrain_wide.json")) as fh:
+        tb = json.load(fh)
+    ow, oh = 1800, round(1800 * (tb["y1"] - tb["y0"]) / (tb["x1"] - tb["x0"]))
+    def fetch(sat):
+        url = (f"https://mesonet.agron.iastate.edu/cgi-bin/wms/{sat}.cgi?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap"
+               f"&LAYERS=fulldisk_ch13&STYLES=&SRS=EPSG:3857&BBOX={tb['x0']:.0f},{tb['y0']:.0f},{tb['x1']:.0f},{tb['y1']:.0f}"
+               f"&WIDTH={ow}&HEIGHT={oh}&FORMAT=image/png&TRANSPARENT=true")
+        a = np.asarray(Image.open(io.BytesIO(get(url, binary=True))).convert("RGBA")).astype(np.float32)
+        r, g, b_, al = a[..., 0], a[..., 1], a[..., 2], a[..., 3]
+        gray = (np.abs(r - g) < 10) & (np.abs(g - b_) < 10)
+        # IEM's channel-13 colors: gray maps to about 298 K (black) .. 257 K (white); colored pixels are colder tops.
+        tk = np.where(gray, 298 - r * 0.165, 238.0)
+        return np.where(al > 0, tk, np.nan)
+    east, west = fetch("goes_east"), fetch("goes_west")
+    lon = np.degrees((tb["x0"] + (np.arange(ow) + .5) * (tb["x1"] - tb["x0"]) / ow) / R)
+    w_e = np.clip((lon + 118) / 16, 0, 1)[None, :]            # east weight: 0 west of 118W, 1 east of 102W
+    tk = np.where(np.isnan(east), west, np.where(np.isnan(west), east, east * w_e + west * (1 - w_e)))
+    clouds = ramp(np.nan_to_num(tk, nan=330), [(205, (255, 255, 255, 245)), (235, (246, 248, 252, 225)), (255, (228, 233, 240, 175)),
+                                              (262, (205, 212, 222, 95)), (270, (190, 198, 210, 30)), (276, (180, 190, 200, 0))])
+    Image.fromarray(clouds, "RGBA").quantize(64, method=Image.FASTOCTREE).save(os.path.join(OUT, "sat", "wide_ir.png"), optimize=True)
+    return {"src": "data/sat/wide_ir.png", "t": now.strftime("%Y-%m-%dT%H:%MZ"), "bounds": [tb["x0"], tb["x1"], tb["y0"], tb["y1"]]}
+
+
 # ---------------------------------------------------------------- HRRR
 FIELDS = [  # (key in idx line, short name)
     ("REFC:entire atmosphere", "refc"),
@@ -281,7 +308,8 @@ def wpc_valid(kind, n, issued):
 
 
 def wpc_style(img):
-    """Recolor WPC's chart colors for the light map, drop the label box and logo, and add a white halo."""
+    """Keep WPC's fronts, troughs and high/low letters, recolored for the dark map. Its isobars are dropped:
+    the page draws its own smooth, labeled isobars from the GFS."""
     a = np.asarray(img.convert("RGBA")).copy()
     h, w = a.shape[:2]
     sy, sx = h / 931, w / 1400
@@ -289,26 +317,13 @@ def wpc_style(img):
     a[int(800 * sy):, int(1260 * sx):, 3] = 0         # NOAA logo
     r, g, b = (a[..., i].astype(int) for i in range(3))
     on = a[..., 3] > 0
-    pink = on & (r > 200) & (g > 150) & (b > 140)     # faint label text
-    a[pink, 3] = 0
-    green = on & (g > 150) & (r < 120) & (b < 120)    # isobars and their labels
-    tc = np.zeros_like(green)
-    tc[int(740 * sy):int(805 * sy), int(715 * sx):int(1000 * sx)] = True
-    a[green & tc, 3] = 0                               # "latest tropical cyclone advisory" disclaimer
-    a[green, :3] = (72, 86, 106)
-    blue = on & (b > 150) & (r < 90) & (g < 120)      # highs and cold fronts
-    a[blue, :3] = (30, 104, 214)
-    red = on & (r > 180) & (g < 90) & (b < 90)        # lows and warm fronts
-    a[red, :3] = (212, 44, 44)
+    a[on & (r > 200) & (g > 150) & (b > 140), 3] = 0  # faint label text
+    a[on & (g > 150) & (r < 120) & (b < 120), 3] = 0  # isobars, their labels, and the tropical disclaimer
+    a[on & (b > 150) & (r < 90) & (g < 120), :3] = (96, 172, 255)    # highs and cold fronts
+    a[on & (r > 180) & (g < 90) & (b < 90), :3] = (255, 96, 96)      # lows and warm fronts
     out = Image.fromarray(a, "RGBA")
-    # Thicken isobars a little so they read on a phone; fronts and letters draw on top unchanged.
-    iso = Image.fromarray((green & ~tc).astype(np.uint8) * 255, "L").filter(ImageFilter.MaxFilter(3))
-    thick = Image.new("RGBA", out.size, (72, 86, 106, 0))
-    thick.putalpha(iso.point(lambda v: 200 if v else 0))
-    thick.alpha_composite(out)
-    out = thick
     halo = out.getchannel("A").filter(ImageFilter.MaxFilter(3))
-    base = Image.new("RGBA", out.size, (255, 255, 255, 0))
+    base = Image.new("RGBA", out.size, (8, 14, 22, 0))
     base.putalpha(halo.point(lambda v: int(v * .8)))
     base.alpha_composite(out)
     return base
@@ -497,10 +512,60 @@ def build_sst(cycle):
                                           "nx": int(pr.shape[1]), "ny": int(pr.shape[0])}}
 
 
+def smooth(a, passes=2):
+    """Light 1-4-6-4-1 smoothing so contour lines come out clean instead of jagged (PRMSL is noisy over mountains)."""
+    k = np.array([1, 4, 6, 4, 1], np.float32) / 16
+    for _ in range(passes):
+        for ax in (0, 1):
+            p = np.pad(a, [(2, 2) if i == ax else (0, 0) for i in range(2)], mode="edge")
+            a = sum(k[i] * np.take(p, range(i, i + a.shape[ax]), axis=ax) for i in range(5))
+    return a
+
+
+CONTOUR_PARAMS = "var_PRMSL=on&var_HGT=on&lev_mean_sea_level=on&lev_250_mb=on&lev_500_mb=on&lev_750_mb=on"
+
+
+def build_contours(now, cycle, hours):
+    """Sea-level pressure and 250/500/750 mb heights on the 0.25-degree GFS grid, for smooth vector contours."""
+    os.makedirs(os.path.join(OUT, "contours"), exist_ok=True)
+
+    def one(fh):
+        try:
+            b = get(gfs_url(cycle, fh, CONTOUR_PARAMS), binary=True)
+            if not b.startswith(b"GRIB"):
+                raise RuntimeError("not available yet")
+            f = global_build.decode_keyed(b)
+        except Exception as e:
+            print("FAILED contours f%03d" % fh, repr(e))
+            return None
+        files = {}
+        for name, key, conv, sc in (("p", "prmsl:meanSea:0", lambda v: v / 100, 10), ("h250", "gh:isobaricInhPa:250", lambda v: v, 1),
+                                    ("h500", "gh:isobaricInhPa:500", lambda v: v, 1), ("h750", "gh:isobaricInhPa:750", lambda v: v, 1)):
+            if key in f:
+                save(f"contours/{name}_{fh:03d}.txt", global_build.pack(smooth(conv(f[key])), sc))
+                files[name] = f"data/contours/{name}_{fh:03d}.txt"
+                shape = f[key].shape
+        return {"fh": fh, "valid": (cycle + dt.timedelta(hours=fh)).strftime("%Y-%m-%dT%H:%MZ"), "files": files, "shape": shape} if files else None
+
+    with cf.ThreadPoolExecutor(2) as ex:
+        hs = [h for h in ex.map(one, hours) if h]
+    if not hs:
+        return None
+    w, e, s_, n = GFS_BOX
+    ny, nx = hs[0].pop("shape")
+    for h in hs[1:]:
+        h.pop("shape", None)
+    return {"lon0": w, "lat0": n, "d": 0.25, "nx": int(nx), "ny": int(ny), "scale": {"p": 10, "h": 1}, "hours": hs}
+
+
 def build_gfs(now):
     cycle = latest_gfs_cycle(now)
     print("GFS cycle", cycle)
     out = {"wind": build_wind(now, cycle)}
+    try:
+        out["contours"] = build_contours(now, cycle, [h["fh"] for h in (out["wind"] or {}).get("hours", [])])
+    except Exception as e:
+        print("FAILED contours", repr(e))
     try:
         g = global_build.build(now, cycle, get, save, OUT)
         print("global frames", len(g["frames"]) if g else 0)
@@ -711,7 +776,7 @@ def build_hrrr(now):
 def main():
     os.makedirs(OUT, exist_ok=True)
     # Start clean so nothing from an earlier run (past radar scans, old model hours) is published.
-    for sub in ("radar", "hrrr", "sat", "wpc", "wind", "global"):
+    for sub in ("radar", "hrrr", "sat", "wpc", "wind", "global", "contours"):
         d = os.path.join(OUT, sub)
         if os.path.isdir(d):
             for fn in os.listdir(d):
@@ -723,7 +788,7 @@ def main():
         jobs = {"alerts": ex.submit(build_alerts), "spc": ex.submit(build_spc),
                 "reports": ex.submit(build_reports), "metars": ex.submit(build_metars),
                 "wm": ex.submit(build_watches_mds), "radar": ex.submit(build_radar, now),
-                "sat": ex.submit(build_satellite, now), "wpc": ex.submit(build_wpc, now), "gfs": ex.submit(build_gfs, now)}
+                "sat": ex.submit(build_satellite, now), "wpc": ex.submit(build_wpc, now), "gfs": ex.submit(build_gfs, now), "satwide": ex.submit(build_sat_wide, now)}
         hrrr = build_hrrr(now)
         res = {}
         for k, j in jobs.items():
@@ -741,9 +806,11 @@ def main():
     save("mds.json", json.dumps(m, separators=(",", ":")))
     meta["radar"] = res["radar"] or []
     meta["sat"] = res["sat"] or []
+    meta["satWide"] = res["satwide"]
     meta["wpc"] = res["wpc"]
     meta["wind"] = (res["gfs"] or {}).get("wind")
     meta["sst"] = (res["gfs"] or {}).get("sst")
+    meta["contours"] = (res["gfs"] or {}).get("contours")
     hour_stats = [h.pop("fc", None) for h in hrrr["hours"]]
     cpx = hrrr.pop("_cpx", [])
     try:

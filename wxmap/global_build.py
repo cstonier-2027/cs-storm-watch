@@ -47,6 +47,33 @@ def decode(b):
     return out
 
 
+def decode_keyed(b):
+    """Like decode(), but keeps the grid's own orientation (north row first) without rolling longitudes."""
+    out, pos = {}, 0
+    while pos < len(b):
+        gid = eccodes.codes_new_from_message(b[pos:])
+        if gid is None:
+            break
+        pos += eccodes.codes_get(gid, "totalLength")
+        key = f"{eccodes.codes_get(gid, 'shortName')}:{eccodes.codes_get(gid, 'typeOfLevel')}:{eccodes.codes_get(gid, 'level')}"
+        nx, ny = eccodes.codes_get(gid, "Ni"), eccodes.codes_get(gid, "Nj")
+        v = eccodes.codes_get_values(gid).reshape(ny, nx)
+        if eccodes.codes_get(gid, "jScansPositively"):
+            v = v[::-1]
+        out.setdefault(key, v)
+        eccodes.codes_release(gid)
+    return out
+
+
+def smooth(a, passes=2):
+    k = np.array([1, 4, 6, 4, 1], np.float32) / 16
+    for _ in range(passes):
+        a = sum(k[i] * np.roll(a, i - 2, axis=1) for i in range(5))                      # longitude wraps
+        p = np.pad(a, [(2, 2), (0, 0)], mode="edge")
+        a = sum(k[i] * p[i:i + a.shape[0]] for i in range(5))
+    return a
+
+
 def pack(a, scale):
     q = np.where(np.isfinite(a), np.rint(a * scale), -32768)
     return base64.b64encode(gzip.compress(np.clip(q, -32768, 32767).astype("<i2").tobytes(), 9)).decode()
@@ -94,8 +121,36 @@ def build(now, cycle, get, save, out_dir):
                 static = {"sst": "data/global/sst.txt", "ice": "data/global/ice.txt"}
         return {"fh": fh, "valid": (cycle + dt.timedelta(hours=fh)).strftime("%Y-%m-%dT%H:%MZ"), "files": files, "static": static}
 
+    # Pressure and upper-air heights on the finer 0.5-degree grid, for smooth contour lines.
+    def hires(fh):
+        u = ("https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p50.pl"
+             f"?dir=%2Fgfs.{cycle:%Y%m%d}%2F{cycle:%H}%2Fatmos&file=gfs.t{cycle:%H}z.pgrb2full.0p50.f{fh:03d}"
+             "&var_PRMSL=on&var_HGT=on&lev_mean_sea_level=on&lev_250_mb=on&lev_500_mb=on&lev_750_mb=on")
+        try:
+            b = get(u, binary=True)
+            if not b.startswith(b"GRIB"):
+                raise RuntimeError("not available")
+            f = decode_keyed(b)
+        except Exception as e:
+            print("FAILED global hires f%03d" % fh, repr(e))
+            return {}
+        files = {}
+        for name, key, conv, sc in (("p", "prmsl:meanSea:0", lambda v: v / 100, 10), ("h250", "gh:isobaricInhPa:250", lambda v: v, 1),
+                                    ("h500", "gh:isobaricInhPa:500", lambda v: v, 1), ("h750", "gh:isobaricInhPa:750", lambda v: v, 1)):
+            if key in f:
+                v = np.roll(f[key], f[key].shape[1] // 2, axis=1)       # 0..359.5E -> 180W..179.5E
+                save(f"global/{name}_{fh:03d}.txt", pack(smooth(conv(v)), sc))
+                files[name] = f"data/global/{name}_{fh:03d}.txt"
+        return files
+
+    def both(fh):
+        r = one(fh)
+        if r:
+            r["hires"] = hires(fh)
+        return r
+
     with cf.ThreadPoolExecutor(2) as ex:
-        frames = [r for r in ex.map(one, [start + h for h in HOURS]) if r]
+        frames = [r for r in ex.map(both, [start + h for h in HOURS]) if r]
     if not frames:
         return None
     static = next((f.pop("static") for f in frames if f.get("static")), None)
@@ -103,6 +158,7 @@ def build(now, cycle, get, save, out_dir):
         f.pop("static", None)
     meta = {"built": now.strftime("%Y-%m-%dT%H:%M:%SZ"), "cycle": cycle.strftime("%Y-%m-%dT%H:%MZ"),
             "grid": {"nx": 360, "ny": 181, "lon0": -180, "lat0": 90, "d": 1},
+            "hiresGrid": {"nx": 720, "ny": 361, "lon0": -180, "lat0": 90, "d": 0.5},
             "scale": {**{k: v[1] for k, v in FIELDS.items()}, "sst": 10, "ice": 1, "wind": WIND_SCALE},
             "static": static, "frames": frames}
     save("global/meta.json", json.dumps(meta, indent=1))

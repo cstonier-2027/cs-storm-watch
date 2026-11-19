@@ -7,8 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Storm Watch">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="theme-color" content="#ffffff">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0c131c">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icon-512.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -16,14 +16,16 @@
 <style>
 /* Global view: one world map, a layer picker on the left, a 48-hour timeline under the map. Same look as the US page. */
 :root {
-  --ink: #13202e; --ink-2: #4a5b6d; --ink-3: #7d8b99;
-  --panel: #ffffff; --panel-2: #f3f6fa; --stage: #eef3f8; --ocean: #cfe2f3; --line: #e1e8ef;
-  --accent: #2b7de9; --adv: #22a06b; --watch: #f59e0b;
-  --shadow: 0 1px 2px rgba(16,24,40,.06), 0 2px 8px rgba(16,24,40,.06);
+  --ink: #e8eef5; --ink-2: #a9b6c4; --ink-3: #74849a;
+  --panel: #161f2b; --panel-2: #1f2a38; --raised: #2e3c4f; --stage: #0c131c; --ocean: #0f2236; --line: #273445;
+  --accent: #4a9bff; --adv: #47c98a; --watch: #ffb020;
+  --glass: rgba(20,29,41,.9); --select: rgba(74,155,255,.15); --switch-off: #3a4759; --bar: #263241; --bar-past: #3b5574;
+  --live-bg: rgba(34,160,107,.18); --live-ink: #63d69f;
+  --shadow: 0 1px 2px rgba(0,0,0,.35), 0 4px 14px rgba(0,0,0,.28);
   --f-display: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
   --f-body: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
   --f-mono: "Inter", -apple-system, system-ui, sans-serif;
-  color-scheme: light;
+  color-scheme: dark;
 }
 html, body { height: 100%; margin: 0; }
 [hidden] { display: none !important; }
@@ -111,26 +113,26 @@ canvas#map { position: absolute; inset: 0; width: 100%; height: 100%; display: b
   .stamps .stamp { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .live i { animation: none; } }
-/* ---- Clean light theme (matches the United States tab). */
+/* ---- Clean theme, dark (matches the United States tab). */
 body { font-variant-numeric: tabular-nums; }
-header.top { padding-top: max(10px, env(safe-area-inset-top, 0px)); background: rgba(255,255,255,.92); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
+header.top { padding-top: max(10px, env(safe-area-inset-top, 0px)); background: var(--glass); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
 .brand h1 { font: 700 22px/1 var(--f-display); letter-spacing: -.01em; text-transform: none; }
-.tabs { background: #eef2f7; border: 0; border-radius: 10px; }
+.tabs { background: var(--panel-2); border: 0; border-radius: 10px; }
 .tabs a { font: 600 13px var(--f-body); letter-spacing: 0; text-transform: none; border-radius: 8px; padding: 6px 14px; }
-.tabs a[aria-current="page"] { background: #fff; color: var(--ink); box-shadow: 0 1px 3px rgba(16,24,40,.14); }
+.tabs a[aria-current="page"] { background: var(--raised); color: var(--ink); box-shadow: 0 1px 3px rgba(16,24,40,.14); }
 .stamp { font: 500 12px var(--f-body); background: var(--panel-2); border: 0; border-radius: 999px; padding: 5px 10px; }
 .stamp em { letter-spacing: 0; text-transform: none; }
-.live { font: 600 12px var(--f-body); background: #e8f6ef; color: #17784c; border: 0; }
+.live { font: 600 12px var(--f-body); background: var(--live-bg); color: var(--live-ink); border: 0; }
 .rail { background: var(--stage); border: 0; padding: 12px; gap: 12px; }
 .rail > .sec { background: var(--panel); border-radius: 16px; padding: 14px; box-shadow: var(--shadow); }
 .rail > .note { padding: 0 6px; }
 .sec h2 { font: 600 15px var(--f-body); letter-spacing: 0; text-transform: none; color: var(--ink); }
 .sec h2 small { font: 500 12px var(--f-body); }
 .layers button { border-radius: 10px; }
-.layers button[aria-pressed="true"] { border-color: transparent; background: #eaf2fd; color: var(--ink); }
+.layers button[aria-pressed="true"] { border-color: transparent; background: var(--select); color: var(--ink); }
 select.sel { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; }
 .tg .sw { display: none; }
-.tg input { order: 3; appearance: none; -webkit-appearance: none; width: 40px; height: 24px; border-radius: 999px; background: #d6dee7; position: relative; flex: none; margin: 0 0 0 auto; cursor: pointer; transition: background .2s; }
+.tg input { order: 3; appearance: none; -webkit-appearance: none; width: 40px; height: 24px; border-radius: 999px; background: var(--switch-off); position: relative; flex: none; margin: 0 0 0 auto; cursor: pointer; transition: background .2s; }
 .tg input::before { content: ""; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(16,24,40,.25); transition: transform .2s; }
 .tg input:checked { background: var(--accent); }
 .tg input:checked::before { transform: translateX(16px); }
@@ -138,18 +140,18 @@ select.sel { background: var(--panel-2); border: 1px solid var(--line); border-r
 .cbar { border: 0; border-radius: 4px; }
 .stage { background: var(--ocean); }
 .mapwrap::after { box-shadow: none; }
-.validtag { background: rgba(255,255,255,.9); border: 0; border-radius: 14px; box-shadow: 0 4px 16px rgba(16,24,40,.12); }
+.validtag { background: var(--glass); border: 0; border-radius: 14px; box-shadow: 0 4px 16px rgba(16,24,40,.12); }
 .validtag .k { font: 600 12px var(--f-body); letter-spacing: 0; text-transform: none; }
 .validtag .v { font: 600 16px var(--f-body); }
 .validtag .s { font: 12px var(--f-body); }
-.mapbtns button { background: rgba(255,255,255,.94); border: 0; border-radius: 12px; color: var(--ink); box-shadow: 0 2px 10px rgba(16,24,40,.14); font-family: var(--f-body); }
-.probe { background: rgba(255,255,255,.96); color: var(--ink); border: 0; box-shadow: 0 8px 24px rgba(16,24,40,.16); }
+.mapbtns button { background: var(--glass); border: 0; border-radius: 12px; color: var(--ink); box-shadow: 0 2px 10px rgba(16,24,40,.14); font-family: var(--f-body); }
+.probe { background: var(--glass); color: var(--ink); border: 0; box-shadow: 0 8px 24px rgba(16,24,40,.16); }
 .loading { background: var(--stage); color: var(--ink-3); font: 600 14px var(--f-body); letter-spacing: 0; text-transform: none; }
-.timeline { background: #fff; border-top: 1px solid var(--line); }
+.timeline { background: var(--panel); border-top: 1px solid var(--line); }
 .timeline button { background: var(--panel-2); border: 0; }
 .timeline button.play { background: var(--accent); color: #fff; }
-.bars i { background: #e6ecf2; border: 0; }
-.bars i.past { background: #b9cde3; }
+.bars i { background: var(--bar); border: 0; }
+.bars i.past { background: var(--bar-past); }
 .bars i.on { background: var(--accent); }
 .keyrow b { font-family: var(--f-body); }
 </style>
@@ -179,10 +181,16 @@ select.sel { background: var(--panel-2); border: 1px solid var(--line); border-r
             <option value="w10">Surface winds</option>
             <option value="w250">Jet stream (34,000 ft)</option>
           </select>
-          <label class="tg" style="margin-top:6px"><input type="checkbox" id="t-iso" checked><span class="sw" style="background:#e2ecf6"></span><span>Isobars, highs &amp; lows</span></label>
+          <label class="tg" style="margin-top:6px"><input type="checkbox" id="t-iso" checked><span class="sw"></span><span>Isobars, highs &amp; lows</span></label>
+          <label class="tg"><input type="checkbox" id="t-hgt"><span class="sw"></span><span>Upper-air heights</span></label>
+          <select class="sel" id="hgtsel" aria-label="Height level">
+            <option value="h500">500 mb · about 18,000 ft</option>
+            <option value="h250">250 mb · jet stream, about 34,000 ft</option>
+            <option value="h750">750 mb · about 8,000 ft</option>
+          </select>
           <label class="tg"><input type="checkbox" id="t-ice" checked><span class="sw" style="background:#eaf4ff"></span><span>Sea ice</span></label>
         </div>
-        <div class="keyrow"><span><b style="color:#1e68d6">H</b>High pressure</span><span><b style="color:#d42c2c">L</b>Low pressure</span></div>
+        <div class="keyrow"><span><b style="color:#60acff">H</b>High pressure</span><span><b style="color:#ff6060">L</b>Low pressure</span><span><i style="display:inline-block;width:18px;border-top:2px solid #eef3f9"></i>Isobars (mb)</span><span><i style="display:inline-block;width:18px;border-top:2px solid #c8a5ff"></i>Heights (dam)</span></div>
       </section>
       <section class="sec">
         <div class="range"><label for="op">Layer opacity</label><input id="op" type="range" min="20" max="100" value="85"><span id="opv">85%</span></div>
@@ -229,15 +237,15 @@ const LAYERS = {
   sst: { name: "Ocean temperature", unit: "°F", static: true, stops: [[28, "#3b1c8c"], [36, "#2c3fbf"], [44, "#1f78d1"], [50, "#20a4c8"], [56, "#2bbf9c"], [62, "#6ccf5a"], [68, "#c6d84a"], [72, "#f2c443"], [76, "#f59a35"], [80, "#ea6a2e"], [84, "#d63a3a"], [88, "#b0206a"], [92, "#e07ad8"]], floor: true, alpha: 225, fmt: v => v.toFixed(0) + "°F", ticks: [30, 50, 70, 90] },
   t2: { name: "Air temperature", unit: "°F", stops: [[-40, "#f1e3ff"], [-20, "#c79bf2"], [0, "#7b5bd6"], [10, "#4c62d8"], [20, "#2f8fe0"], [32, "#45c0e0"], [40, "#3fb88a"], [50, "#7ccc4e"], [60, "#d8d64a"], [70, "#f2b23a"], [80, "#ec7a2e"], [90, "#d9412b"], [100, "#a8203a"], [110, "#6e1030"]], floor: true, alpha: 200, fmt: v => v.toFixed(0) + "°F", ticks: [-40, 0, 32, 70, 110] },
   prate: { name: "Rain & snow", unit: "in/hr", stops: [[0.1, "#8fd18a"], [0.5, "#3fae4a"], [1, "#1f8a3a"], [2, "#e6d43a"], [4, "#f29a2e"], [8, "#e2412c"], [16, "#b81e6a"], [32, "#e48ae0"]], alpha: 220, fmt: v => (v / 25.4).toFixed(2) + " in/hr", ticks: [0.1, 1, 4, 16], tick: v => (v / 25.4).toFixed(v < 1 ? 3 : 2).replace(/^0/, "") },
-  tcc: { name: "Clouds", unit: "%", stops: [[10, "#c9d4df"], [100, "#5c7088"]], cloud: true, fmt: v => v.toFixed(0) + "% cover", ticks: [10, 50, 100] },
+  tcc: { name: "Clouds", unit: "%", stops: [[10, "#dfe6ee"], [100, "#ffffff"]], cloud: true, fmt: v => v.toFixed(0) + "% cover", ticks: [10, 50, 100] },
   w250: { name: "Jet stream speed", unit: "mph", wind: true, stops: [[60, "#3c5f8f"], [80, "#4fb0c8"], [100, "#6fd08a"], [120, "#e6d84a"], [140, "#f29a2e"], [160, "#e2412c"], [180, "#c21f6a"], [200, "#f0b0f0"]], alpha: 210, fmt: v => v.toFixed(0) + " mph", ticks: [60, 100, 140, 200] },
   none: { name: "None", unit: "" },
 };
-const SWATCH = { sst: "linear-gradient(90deg,#2c3fbf,#2bbf9c,#f2c443,#d63a3a)", t2: "linear-gradient(90deg,#7b5bd6,#45c0e0,#d8d64a,#d9412b)", prate: "linear-gradient(90deg,#8fd18a,#1f8a3a,#f29a2e,#b81e6a)", tcc: "linear-gradient(90deg,#e9eef4,#5c7088)", w250: "linear-gradient(90deg,#4fb0c8,#e6d84a,#e2412c,#f0b0f0)", none: "transparent" };
-const WIND_COLORS = { w10: [[0, "#6b86a3"], [4.5, "#2f80c8"], [9, "#1e9a62"], [15.5, "#c9a300"], [20, "#e07a12"], [24.5, "#d6332e"], [33.5, "#b0179b"]],
-  w250: [[0, "#6b86a3"], [20, "#2f80c8"], [35, "#1e9a62"], [50, "#c9a300"], [60, "#e07a12"], [75, "#d6332e"], [90, "#b0179b"]] };
+const SWATCH = { sst: "linear-gradient(90deg,#2c3fbf,#2bbf9c,#f2c443,#d63a3a)", t2: "linear-gradient(90deg,#7b5bd6,#45c0e0,#d8d64a,#d9412b)", prate: "linear-gradient(90deg,#8fd18a,#1f8a3a,#f29a2e,#b81e6a)", tcc: "linear-gradient(90deg,#3b4a5c,#ffffff)", w250: "linear-gradient(90deg,#4fb0c8,#e6d84a,#e2412c,#f0b0f0)", none: "transparent" };
+const WIND_COLORS = { w10: [[0, "#a8c8ff"], [4.5, "#7fe0ff"], [9, "#9ff07a"], [15.5, "#fff06a"], [20, "#ffb347"], [24.5, "#ff6a5a"], [33.5, "#ff5cf0"]],
+  w250: [[0, "#8fa9cc"], [20, "#7fe0ff"], [35, "#9ff07a"], [50, "#fff06a"], [60, "#ffb347"], [75, "#ff6a5a"], [90, "#ff5cf0"]] };
 
-const S = { layer: "sst", wind: true, windLevel: "w10", iso: true, ice: true, frame: 0, playing: false, opacity: .85, t: d3.zoomIdentity };
+const S = { layer: "sst", wind: true, windLevel: "w10", iso: true, hgt: false, hgtLevel: "h500", ice: true, frame: 0, playing: false, opacity: .85, t: d3.zoomIdentity };
 let M = null, world = null, paths = {}, cw = 0, ch = 0, dpr = 1;
 const cache = new Map();          // src -> Promise<Int16Array> (then the array itself)
 const rasters = new Map();        // layer:frame -> canvas
@@ -290,7 +298,7 @@ function raster(name) {
     if (name === "w250") v = Math.hypot(g[i], g[i + n]) / sc * 2.237;
     else { if (g[i] === -32768) continue; v = g[i] / sc; }
     if (name === "ice") { if (v >= 15) { d[i * 4] = 234; d[i * 4 + 1] = 244; d[i * 4 + 2] = 255; d[i * 4 + 3] = Math.min(235, 90 + v * 1.4); } continue; }
-    if (L.cloud) { if (v >= 10) { d[i * 4] = 92; d[i * 4 + 1] = 112; d[i * 4 + 2] = 136; d[i * 4 + 3] = Math.round(v * 1.6); } continue; }
+    if (L.cloud) { if (v >= 10) { d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = 236; d[i * 4 + 3] = Math.round(v * 1.9); } continue; }
     const col = colorFor(L, v); if (!col) continue;
     d[i * 4] = col[0]; d[i * 4 + 1] = col[1]; d[i * 4 + 2] = col[2]; d[i * 4 + 3] = L.alpha;
   }
@@ -346,11 +354,100 @@ function isobars() {
   isoCache.set(S.frame, r);
   return r;
 }
-function drawIsobars(k, sxF, syF) {
-  const iso = isobars(); if (!iso) return;
-  ctx.strokeStyle = "rgba(60,74,94,.5)"; ctx.lineWidth = 1 / k; ctx.stroke(iso.path);
-  ctx.strokeStyle = "rgba(60,74,94,.75)"; ctx.lineWidth = 1.6 / k; ctx.stroke(iso.major);
-  return iso.marks;
+// ---------- smooth contour lines (sea-level isobars, 250/500/750 mb heights)
+// Shared by both tabs. vals: grid values (north row first); toXY(gx, gy) maps grid coordinates to map space.
+const CONTOUR = {
+  p: { step: 4, major: 20, color: "rgba(236,242,250,.82)", label: v => String(Math.round(v)), name: "Sea-level pressure", unit: "mb" },
+  h250: { step: 120, major: 480, color: "rgba(200,165,255,.95)", label: v => String(Math.round(v / 10)), name: "250 mb height", unit: "dam" },
+  h500: { step: 60, major: 300, color: "rgba(200,165,255,.95)", label: v => String(Math.round(v / 10)), name: "500 mb height", unit: "dam" },
+  h750: { step: 30, major: 150, color: "rgba(200,165,255,.95)", label: v => String(Math.round(v / 10)), name: "750 mb height", unit: "dam" },
+};
+function contourLines(vals, nx, ny, step, toXY) {
+  let lo = Infinity, hi = -Infinity;
+  for (const v of vals) if (isFinite(v)) { if (v < lo) lo = v; if (v > hi) hi = v; }
+  const th = d3.range(Math.ceil(lo / step) * step, hi, step), lines = [];
+  for (const c of d3.contours().size([nx, ny]).thresholds(th)(vals)) {
+    for (const poly of c.coordinates) for (const ring of poly) {
+      let cur = [];
+      for (const [x, y] of ring) {
+        // d3 closes rings along the grid's edge; those segments aren't real contours.
+        if (x <= 0.01 || y <= 0.01 || x >= nx - 0.01 || y >= ny - 0.01) { if (cur.length > 2) lines.push({ v: c.value, pts: cur }); cur = []; continue; }
+        cur.push(toXY(x - 0.5, y - 0.5));
+      }
+      if (cur.length > 2) lines.push({ v: c.value, pts: cur });
+    }
+  }
+  return lines;
+}
+// Curves through segment midpoints (quadratic smoothing) so lines read as smooth, not stair-stepped.
+function smoothPath(lines, keep) {
+  const p = new Path2D();
+  for (const l of lines) {
+    if (!keep(l)) continue;
+    const q = l.pts; p.moveTo(q[0][0], q[0][1]);
+    for (let i = 1; i < q.length - 1; i++) p.quadraticCurveTo(q[i][0], q[i][1], (q[i][0] + q[i + 1][0]) / 2, (q[i][1] + q[i + 1][1]) / 2);
+    p.lineTo(q.at(-1)[0], q.at(-1)[1]);
+  }
+  return p;
+}
+function contourSet(key, vals, nx, ny, toXY) {
+  const c = CONTOUR[key], lines = contourLines(vals, nx, ny, c.step, toXY);
+  const isMajor = l => Math.abs(l.v % c.major) < 1e-6;
+  return { key, lines, minor: smoothPath(lines, l => !isMajor(l)), major: smoothPath(lines, isMajor), isMajor };
+}
+// Draw in map space (ctx already scaled by k), dark halo underneath for contrast over clouds and radar.
+function drawContourSet(cs, k) {
+  const c = CONTOUR[cs.key];
+  ctx.lineJoin = ctx.lineCap = "round";
+  ctx.strokeStyle = "rgba(6,12,20,.55)";
+  ctx.lineWidth = 4 / k; ctx.stroke(cs.minor); ctx.lineWidth = 5.4 / k; ctx.stroke(cs.major);
+  ctx.strokeStyle = c.color;
+  ctx.lineWidth = 1.6 / k; ctx.stroke(cs.minor); ctx.lineWidth = 2.8 / k; ctx.stroke(cs.major);
+}
+// Value tags along each line, in screen space, spaced out and never overlapping.
+function contourLabels(cs, t, boxes, minorTags) {
+  const c = CONTOUR[cs.key], out = [];
+  const spacing = 420, margin = 24;
+  ctx.font = "600 11px Inter, -apple-system, system-ui, sans-serif";
+  for (const l of cs.lines) {
+    if (!cs.isMajor(l) && !minorTags) continue;   // minor lines get tags once zoomed in
+    let dist = 0, next = 140, px = null, py = null;
+    for (const [bx, by] of l.pts) {
+      const x = t.x + bx * t.k, y = t.y + by * t.k;
+      if (px != null) dist += Math.hypot(x - px, y - py);
+      px = x; py = y;
+      if (dist < next) continue;
+      next = dist + spacing;
+      if (x < margin || y < margin || x > cw - margin || y > ch - margin) continue;
+      const text = c.label(l.v), w = ctx.measureText(text).width + 10, box = [x - w / 2, y - 8, x + w / 2, y + 8];
+      if (boxes.some(b => box[0] < b[2] && box[2] > b[0] && box[1] < b[3] && box[3] > b[1])) continue;
+      boxes.push(box); out.push({ x, y, w, text });
+    }
+  }
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for (const l of out) {
+    ctx.fillStyle = "rgba(14,22,32,.88)"; ctx.beginPath(); ctx.roundRect(l.x - l.w / 2, l.y - 8, l.w, 16, 8); ctx.fill();
+    ctx.strokeStyle = c.color; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = "#f2f6fa"; ctx.fillText(l.text, l.x, l.y + .5);
+  }
+}
+
+const HC = { sets: new Map() };
+function hiresSet(key) {
+  const src = frame().hires?.[key]; if (!src) return null;
+  const id = key + ":" + S.frame;
+  if (HC.sets.has(id)) return HC.sets.get(id);
+  const g = grid(src); if (!g) return null;
+  const G = M.hiresGrid, sc = key === "p" ? 10 : 1, vals = Float64Array.from(g, v => v === -32768 ? NaN : v / sc);
+  const cs = contourSet(key, vals, G.nx, G.ny, (gx, gy) => [bx(G.lon0 + gx * G.d), by(G.lat0 - gy * G.d)]);
+  HC.sets.set(id, cs);
+  return cs;
+}
+function drawIsobars(k) {
+  if (S.hgt) { const cs = hiresSet(S.hgtLevel); if (cs) drawContourSet(cs, k); }
+  if (!S.iso) return null;
+  const cs = hiresSet("p"); if (cs) drawContourSet(cs, k);
+  return isobars()?.marks || null;
 }
 
 // ---------- wind particles (screen space, field from the u/v grid)
@@ -405,31 +502,35 @@ function draw() {
   if (!M || !world) return;
   const t = S.t, k = t.k;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.fillStyle = "#c8dcef"; ctx.fillRect(0, 0, cw, ch);
+  ctx.fillStyle = "#0b1826"; ctx.fillRect(0, 0, cw, ch);
   ctx.setTransform(dpr * k, 0, 0, dpr * k, dpr * t.x, dpr * t.y);
-  ctx.fillStyle = "#cfe2f3"; ctx.fillRect(0, 0, BW, BH);
-  ctx.fillStyle = "#eef1ea"; ctx.fill(paths.land);
-  ctx.fillStyle = "#cfe2f3"; ctx.fill(paths.lakes);
+  ctx.fillStyle = "#0f2236"; ctx.fillRect(0, 0, BW, BH);
+  ctx.fillStyle = "#1d2834"; ctx.fill(paths.land);
+  ctx.fillStyle = "#0f2236"; ctx.fill(paths.lakes);
 
   if (S.layer !== "none") { const r = raster(S.layer); if (r) drawRaster(r, S.opacity); }
   if (S.ice && S.layer !== "sst") { const r = raster("ice"); if (r) drawRaster(r, .9); }
   if (S.ice && S.layer === "sst") { const r = raster("ice"); if (r) drawRaster(r, .95); }
 
-  ctx.strokeStyle = "rgba(60,100,140,.55)"; ctx.lineWidth = .9 / k; ctx.stroke(paths.land);
-  ctx.strokeStyle = "rgba(90,110,130,.35)"; ctx.lineWidth = .7 / k; ctx.stroke(paths.borders);
-  let marks = null;
-  if (S.iso) marks = drawIsobars(k);
+  ctx.strokeStyle = "rgba(170,200,230,.5)"; ctx.lineWidth = .9 / k; ctx.stroke(paths.land);
+  ctx.strokeStyle = "rgba(160,180,200,.28)"; ctx.lineWidth = .7 / k; ctx.stroke(paths.borders);
+  const marks = S.iso || S.hgt ? drawIsobars(k) : null;
 
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   if (S.wind) drawWind();
+  if (S.iso || S.hgt) {
+    const boxes = [], minorTags = t.k / homeT().k > 1.8;
+    if (S.hgt) { const cs = hiresSet(S.hgtLevel); if (cs) contourLabels(cs, t, boxes, minorTags); }
+    if (S.iso) { const cs = hiresSet("p"); if (cs) contourLabels(cs, t, boxes, minorTags); }
+  }
   if (marks) {
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
     for (const m of marks) {
       const x = t.x + ((m.x) * BW / 360) * k, y = t.y + ((m.y) * BH / 180) * k;
       if (x < -20 || y < -20 || x > cw + 20 || y > ch + 20) continue;
-      ctx.font = "700 19px Inter, -apple-system, sans-serif"; ctx.lineWidth = 4; ctx.strokeStyle = "rgba(255,255,255,.92)";
-      ctx.strokeText(m.hi ? "H" : "L", x, y); ctx.fillStyle = m.hi ? "#1e68d6" : "#d42c2c"; ctx.fillText(m.hi ? "H" : "L", x, y);
-      ctx.font = "600 11px Inter, -apple-system, sans-serif"; ctx.strokeText(Math.round(m.v), x, y + 15); ctx.fillStyle = "#34465a"; ctx.fillText(Math.round(m.v), x, y + 15);
+      ctx.font = "700 19px Inter, -apple-system, sans-serif"; ctx.lineWidth = 4; ctx.strokeStyle = "rgba(8,14,22,.9)";
+      ctx.strokeText(m.hi ? "H" : "L", x, y); ctx.fillStyle = m.hi ? "#60acff" : "#ff6060"; ctx.fillText(m.hi ? "H" : "L", x, y);
+      ctx.font = "600 11px Inter, -apple-system, sans-serif"; ctx.strokeText(Math.round(m.v), x, y + 15); ctx.fillStyle = "#e8eef5"; ctx.fillText(Math.round(m.v), x, y + 15);
     }
   }
 }
@@ -500,7 +601,7 @@ function legend() {
   $("legunit").textContent = L.unit;
   if (!L.stops) { $("legend").innerHTML = `<p class="note">No color layer. Coastlines, winds and pressure only.</p>`; return; }
   const lo = L.stops[0][0], hi = L.stops.at(-1)[0], pos = v => L.cloud ? (v - lo) / (hi - lo) : L.stops.findIndex(s => s[0] >= v) / (L.stops.length - 1);
-  const bar = L.cloud ? "linear-gradient(90deg,#e9eef4,#a9b8c8,#5c7088)" : `linear-gradient(90deg,${L.stops.map(([, c], i) => `${c} ${(i / (L.stops.length - 1) * 100).toFixed(0)}%`).join(",")})`;
+  const bar = L.cloud ? "linear-gradient(90deg,#3b4a5c,#dfe6ee,#ffffff)" : `linear-gradient(90deg,${L.stops.map(([, c], i) => `${c} ${(i / (L.stops.length - 1) * 100).toFixed(0)}%`).join(",")})`;
   const ticks = L.ticks.map(v => `<span style="position:absolute;left:${(pos(v) * 100).toFixed(1)}%;transform:translateX(-${pos(v) * 100}%)">${L.tick ? L.tick(v) : v}</span>`).join("");
   $("legend").innerHTML = `<div class="cbar" style="background:${bar}"></div><div class="cticks" style="position:relative;height:16px">${ticks}</div>
     <div class="lcap">${{ sst: "Latest analysis · land masked", t2: "About 6 ft above ground", prate: "Liquid-equivalent rate; snow shows as precipitation", tcc: "Total cloud cover, all levels", w250: "Wind speed at the 250 mb level" }[S.layer] || ""}</div>`;
@@ -537,6 +638,8 @@ $("op").oninput = e => { S.opacity = e.target.value / 100; $("opv").textContent 
 $("t-wind").onchange = e => { S.wind = e.target.checked; syncTag(); kick(); draw(); };
 $("windsel").onchange = e => { S.windLevel = e.target.value; if (!S.wind) { S.wind = true; $("t-wind").checked = true; } syncTag(); kick(); };
 $("t-iso").onchange = e => { S.iso = e.target.checked; draw(); };
+$("t-hgt").onchange = e => { S.hgt = e.target.checked; draw(); };
+$("hgtsel").onchange = e => { S.hgtLevel = e.target.value; if (!S.hgt) { S.hgt = true; $("t-hgt").checked = true; } draw(); };
 $("t-ice").onchange = e => { S.ice = e.target.checked; draw(); };
 
 function stamps() {

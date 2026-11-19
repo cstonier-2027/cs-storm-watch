@@ -122,20 +122,20 @@ def terrain(elev, land):
     shade = np.sin(alt) * np.cos(slope) + np.cos(alt) * np.sin(slope) * np.cos(az - (np.pi / 2 - aspect))
     shade = np.clip(shade, 0, 1)
 
-    # Soft daytime palette: pale sage lowlands, warm sand uplands, light snowy peaks, airy blue water.
+    # Clean dark palette: charcoal-slate land with soft relief, deep navy water that brightens toward the coast.
     land_c = ramp(np.clip(elev, -100, 4300), [
-        (-100, (230, 235, 230)), (0, (231, 236, 229)), (300, (232, 235, 226)), (800, (233, 232, 223)),
-        (1500, (229, 225, 215)), (2200, (223, 218, 209)), (3000, (229, 228, 227)), (4300, (247, 247, 249))])
+        (-100, (36, 46, 54)), (0, (37, 47, 55)), (300, (40, 49, 56)), (800, (45, 52, 58)),
+        (1500, (52, 56, 61)), (2200, (60, 63, 68)), (3000, (82, 86, 92)), (4300, (120, 126, 134))])
     sea_c = ramp(np.clip(-elev, 0, 6000), [
-        (0, (196, 224, 242)), (50, (186, 216, 238)), (200, (172, 206, 232)), (1000, (156, 194, 226)),
-        (3000, (142, 182, 220)), (6000, (128, 170, 212))])
+        (0, (24, 52, 78)), (50, (20, 46, 72)), (200, (16, 39, 63)), (1000, (13, 32, 54)),
+        (3000, (11, 27, 47)), (6000, (9, 22, 40))])
     base = np.where(land[..., None], land_c, sea_c)
-    k = np.where(land, 0.80 + 0.32 * shade, 0.94 + 0.10 * shade)[..., None]
+    k = np.where(land, 0.62 + 0.62 * shade, 0.92 + 0.14 * shade)[..., None]
     rgb = np.clip(base * k, 0, 255).astype(np.uint8)
-    # Thin, slightly darker shoreline on the water side.
+    # Thin, slightly brighter shoreline on the water side.
     edge = Image.fromarray((land * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(1.2))
     shore = (np.asarray(edge).astype(np.float32) / 255)[..., None] * (~land)[..., None]
-    rgb = np.clip(rgb - shore * np.array([40, 30, 18]), 0, 255).astype(np.uint8)
+    rgb = np.clip(rgb + shore * np.array([22, 36, 46]), 0, 255).astype(np.uint8)
     return Image.fromarray(rgb, "RGB")
 
 

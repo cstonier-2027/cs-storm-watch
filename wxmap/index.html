@@ -4,8 +4,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Storm Watch">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="theme-color" content="#ffffff">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0c131c">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icon-512.png">
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -14,22 +14,30 @@
 <style>
 /* Layout: one-screen ops console. Map fills the stage; a control rail on the left, hazards rail on the right, timeline docked under the map. Stacks to one column on phones. */
 :root {
-  --ink: #13202e;          /* primary text */
-  --ink-2: #4a5b6d;        /* secondary text */
-  --ink-3: #7d8b99;        /* tertiary */
-  --panel: #ffffff;        /* cards */
-  --panel-2: #f3f6fa;      /* fills inside cards */
-  --stage: #eef3f8;        /* page ground */
-  --ocean: #cfe2f3;        /* map water */
-  --land: #eef0ea;         /* map land */
-  --line: #e1e8ef;         /* hairlines */
-  --accent: #2b7de9;       /* links, focus, selected */
-  --warn: #e5484d; --watch: #f59e0b; --adv: #22a06b;
-  --shadow: 0 1px 2px rgba(16,24,40,.06), 0 2px 8px rgba(16,24,40,.06);
+  --ink: #e8eef5;          /* primary text */
+  --ink-2: #a9b6c4;        /* secondary text */
+  --ink-3: #74849a;        /* tertiary */
+  --panel: #161f2b;        /* cards */
+  --panel-2: #1f2a38;      /* fills inside cards */
+  --raised: #2e3c4f;       /* selected segment */
+  --stage: #0c131c;        /* page ground */
+  --ocean: #0f2236;        /* map water */
+  --land: #1d2834;         /* map land */
+  --line: #273445;         /* hairlines */
+  --accent: #4a9bff;       /* links, focus, selected */
+  --accent-ink: #8cc4ff;
+  --glass: rgba(20,29,41,.9);                /* panels floating over the map */
+  --select: rgba(74,155,255,.15);
+  --switch-off: #3a4759;
+  --bar: #263241; --bar-past: #3b5574;
+  --live-bg: rgba(34,160,107,.18); --live-ink: #63d69f;
+  --cold: #7db6ff; --warm: #ff9a5c;
+  --warn: #ff5d5d; --watch: #ffb020; --adv: #47c98a;
+  --shadow: 0 1px 2px rgba(0,0,0,.35), 0 4px 14px rgba(0,0,0,.28);
   --f-display: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
   --f-body: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
   --f-mono: "Inter", -apple-system, system-ui, sans-serif;  /* numbers use tabular figures instead of a monospace font */
-  color-scheme: light;
+  color-scheme: dark;
 }
 html, body { height: 100%; }
 [hidden] { display: none !important; }
@@ -258,28 +266,28 @@ canvas#map { position: absolute; inset: 0; width: 100%; height: 100%; display: b
   .stamps .stamp, .brand span { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .ticks .bars i { transition: none; } }
-/* ---- Clean light theme: white rounded cards on a soft blue-gray page, system type, iOS-style controls. */
+/* ---- Clean theme (dark): rounded cards on a deep slate page, system type, iOS-style controls. */
 body { background: var(--stage); font-variant-numeric: tabular-nums; }
-header.top { padding-top: max(10px, env(safe-area-inset-top, 0px)); background: rgba(255,255,255,.92); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
+header.top { padding-top: max(10px, env(safe-area-inset-top, 0px)); background: var(--glass); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
 .brand h1 { font: 700 22px/1 var(--f-display); letter-spacing: -.01em; text-transform: none; }
 .brand span { font: 500 12px var(--f-body); letter-spacing: 0; }
-.tabs { background: #eef2f7; border: 0; border-radius: 10px; }
+.tabs { background: var(--panel-2); border: 0; border-radius: 10px; }
 .tabs a { font: 600 13px var(--f-body); letter-spacing: 0; text-transform: none; border-radius: 8px; padding: 6px 14px; }
-.tabs a[aria-current="page"] { background: #fff; color: var(--ink); box-shadow: 0 1px 3px rgba(16,24,40,.14); }
+.tabs a[aria-current="page"] { background: var(--raised); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.35); }
 .stamp { font: 500 12px var(--f-body); background: var(--panel-2); border: 0; border-radius: 999px; padding: 5px 10px; }
 .stamp em { font-style: normal; letter-spacing: 0; text-transform: none; }
-.live { font: 600 12px var(--f-body); background: #e8f6ef; color: #17784c; border: 0; }
-.fcbtn { font: 600 12.5px var(--f-body); background: #fff; border: 1px solid var(--line); }
+.live { font: 600 12px var(--f-body); background: var(--live-bg); color: var(--live-ink); border: 0; }
+.fcbtn { font: 600 12.5px var(--f-body); background: var(--panel-2); border: 1px solid var(--line); }
 .rail, .rail.right { background: var(--stage); border: 0; padding: 12px; gap: 12px; }
 .rail > .sec { background: var(--panel); border-radius: 16px; padding: 14px; box-shadow: var(--shadow); }
 .rail > .note { padding: 0 6px; }
 .sec h2 { font: 600 15px var(--f-body); letter-spacing: 0; text-transform: none; color: var(--ink); align-items: center; }
 .sec h2 small { font: 500 12px var(--f-body); }
-.seg { background: #eef2f7; border: 0; border-radius: 10px; }
+.seg { background: var(--panel-2); border: 0; border-radius: 10px; }
 .seg button { font: 600 13px var(--f-body); letter-spacing: 0; text-transform: none; border-radius: 8px; padding: 7px 4px; }
-.seg button[aria-pressed="true"] { background: #fff; color: var(--ink); box-shadow: 0 1px 3px rgba(16,24,40,.14); }
+.seg button[aria-pressed="true"] { background: var(--raised); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.35); }
 .fieldlist button { border-radius: 10px; }
-.fieldlist button[aria-pressed="true"] { border-color: transparent; background: #eaf2fd; color: var(--ink); }
+.fieldlist button[aria-pressed="true"] { border-color: transparent; background: var(--select); color: var(--ink); }
 .fieldlist button .u, .acard .tm, .lticks, .lcap, .cticks, .range, .detail .meta, .hkey, .hrly div, .nws summary em, .probe { font-family: var(--f-body); }
 select.sel, .filt, .find input { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; }
 .filt { margin: 10px 0 8px; }
@@ -287,34 +295,34 @@ select.sel, .filt, .find input { background: var(--panel-2); border: 1px solid v
 .tg { justify-content: flex-start; padding: 5px 0; }
 .tg .sw { display: none; }
 .tg .n { order: 2; }
-.tg input { order: 3; appearance: none; -webkit-appearance: none; width: 40px; height: 24px; border-radius: 999px; background: #d6dee7; position: relative; flex: none; margin: 0 0 0 auto; cursor: pointer; transition: background .2s; }
+.tg input { order: 3; appearance: none; -webkit-appearance: none; width: 40px; height: 24px; border-radius: 999px; background: var(--switch-off); position: relative; flex: none; margin: 0 0 0 auto; cursor: pointer; transition: background .2s; }
 .tg .n + input, .tg input:not(:first-child) { margin-left: 10px; }
-.tg input::before { content: ""; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(16,24,40,.25); transition: transform .2s; }
+.tg input::before { content: ""; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.4); transition: transform .2s; }
 .tg input:checked { background: var(--accent); }
 .tg input:checked::before { transform: translateX(16px); }
 .tg input:disabled { opacity: .4; }
 .tg span:not(.n):not(.sw) { flex: 1; }
 .stage { background: var(--ocean); }
 .mapwrap::after { box-shadow: none; }
-.validtag { background: rgba(255,255,255,.9); border: 0; border-radius: 14px; box-shadow: 0 4px 16px rgba(16,24,40,.12); }
+.validtag { background: var(--glass); border: 0; border-radius: 14px; box-shadow: 0 4px 16px rgba(0,0,0,.4); }
 .validtag .k { font: 600 12px var(--f-body); letter-spacing: 0; text-transform: none; }
 .validtag .v { font: 600 16px var(--f-body); }
 .validtag .s { font: 12px var(--f-body); }
-.validtag .w { font: 500 12px var(--f-body); color: #2563a8; }
-.mapbtns button { background: rgba(255,255,255,.94); border: 0; border-radius: 12px; color: var(--ink); box-shadow: 0 2px 10px rgba(16,24,40,.14); font-family: var(--f-body); }
+.validtag .w { font: 500 12px var(--f-body); color: var(--accent-ink); }
+.mapbtns button { background: var(--glass); border: 0; border-radius: 12px; color: var(--ink); box-shadow: 0 2px 10px rgba(0,0,0,.4); font-family: var(--f-body); }
 .mapbtns .qt[aria-pressed="true"] { background: var(--accent); color: #fff; }
-.probe { background: rgba(255,255,255,.96); color: var(--ink); border: 0; box-shadow: 0 8px 24px rgba(16,24,40,.16); }
-.presets button { background: rgba(255,255,255,.95); color: var(--ink); border: 0; box-shadow: 0 2px 10px rgba(16,24,40,.14); font-weight: 500; }
+.probe { background: var(--glass); color: var(--ink); border: 0; box-shadow: 0 8px 24px rgba(0,0,0,.45); }
+.presets button { background: var(--glass); color: var(--ink); border: 0; box-shadow: 0 2px 10px rgba(0,0,0,.4); font-weight: 500; }
 .presets button[aria-pressed="true"] { background: var(--accent); color: #fff; }
-.tip { background: #fff; border: 0; box-shadow: 0 6px 20px rgba(16,24,40,.18); }
-.toast { background: rgba(19,32,46,.92); color: #fff; border: 0; }
+.tip { background: var(--panel); border: 0; box-shadow: 0 6px 20px rgba(0,0,0,.45); }
+.toast { background: var(--glass); color: var(--ink); border: 0; }
 .loading { background: var(--stage); color: var(--ink-3); font: 600 14px var(--f-body); letter-spacing: 0; text-transform: none; }
-.timeline { background: #fff; border-top: 1px solid var(--line); }
+.timeline { background: var(--panel); border-top: 1px solid var(--line); }
 .timeline button { background: var(--panel-2); border: 0; }
 .timeline button.play { background: var(--accent); color: #fff; }
 .speed select { background: var(--panel-2); border: 0; border-radius: 8px; }
-.bars i { background: #e6ecf2; border: 0; }
-.bars i.past { background: #b9cde3; }
+.bars i { background: var(--bar); border: 0; }
+.bars i.past { background: var(--bar-past); }
 .bars i.on { background: var(--accent); }
 .lab { font-family: var(--f-body); }
 .summary div { background: var(--panel-2); border: 0; border-radius: 12px; }
@@ -322,10 +330,10 @@ select.sel, .filt, .find input { background: var(--panel-2); border: 1px solid v
 .summary span { font: 500 11px var(--f-body); letter-spacing: 0; text-transform: none; }
 .chip { background: var(--panel-2); border: 0; padding: 5px 12px; }
 .chip[aria-pressed="true"] { background: var(--accent); color: #fff; }
-.acard { background: #fff; border: 1px solid var(--line); border-radius: 12px; }
-.acard:hover, .acard[aria-current="true"] { border-color: var(--accent); background: #f7fbff; }
+.acard { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+.acard:hover, .acard[aria-current="true"] { border-color: var(--accent); background: var(--select); }
 .alist { margin-top: 10px; }
-.detail, .place { background: #fff; border: 1px solid var(--line); border-radius: 14px; }
+.detail, .place { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; }
 .place { border-top: 3px solid var(--accent); }
 .phead h3, .fcard .fhead { font-family: var(--f-body); font-weight: 700; letter-spacing: -.01em; }
 .phead .x, .detail .x { background: var(--panel-2); border: 0; border-radius: 999px; }
@@ -334,16 +342,16 @@ select.sel, .filt, .find input { background: var(--panel-2); border: 1px solid v
 .hrly b { font: 700 14px var(--f-body); }
 .nws details { background: var(--panel-2); border-radius: 10px; }
 .nws summary .t { font: 700 16px var(--f-body); }
-.nws summary .t.lo { color: #2563eb; }
-.nws summary .t.hi { color: #ea580c; }
-.nws summary em { color: #2563eb; }
-.pal button { background: #fff; }
-.fcard { background: #fff; border-color: var(--line); border-radius: 0 14px 14px 0; }
+.nws summary .t.lo { color: var(--cold); }
+.nws summary .t.hi { color: var(--warm); }
+.nws summary em { color: var(--cold); }
+.pal button { background: var(--panel-2); }
+.fcard { background: var(--panel); border-color: var(--line); border-radius: 0 14px 14px 0; }
 .fout b { font: 600 13px var(--f-body); letter-spacing: 0; text-transform: none; }
 .fout em { font: 600 11px var(--f-body); color: #13202e; }
 .hint, .qh { background: var(--panel-2); border: 0; }
 .qh { font-family: var(--f-body); }
-.find .saved { background: #eaf2fd; border: 0; }
+.find .saved { background: var(--select); border: 0; }
 .legend .lbar { border: 0; border-radius: 4px; }
 .keyrow b.hl { font-family: var(--f-body); }
 .wpcrow button { background: var(--panel-2); border: 0; border-radius: 10px; }
@@ -351,8 +359,8 @@ select.sel, .filt, .find input { background: var(--panel-2); border: 1px solid v
 /* Top-left stack: your city's weather card above the map-time tag. */
 .tl { position: absolute; left: 12px; top: 12px; z-index: 2; display: grid; gap: 8px; justify-items: start; max-width: calc(100% - 70px); pointer-events: none; }
 .tl .validtag { position: static; }
-.citycard { pointer-events: auto; display: grid; text-align: left; background: #fff; border: 0; border-radius: 18px; padding: 10px 16px 12px; box-shadow: 0 6px 20px rgba(16,24,40,.16); cursor: pointer; min-width: 150px; color: var(--ink); }
-.citycard:hover { box-shadow: 0 8px 26px rgba(16,24,40,.22); }
+.citycard { pointer-events: auto; display: grid; text-align: left; background: var(--glass); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border: 0; border-radius: 18px; padding: 10px 16px 12px; box-shadow: 0 6px 20px rgba(0,0,0,.45); cursor: pointer; min-width: 150px; color: var(--ink); }
+.citycard:hover { box-shadow: 0 8px 26px rgba(0,0,0,.5); }
 .cc-name { font: 600 13px var(--f-body); color: var(--ink-2); }
 .cc-temp { font: 300 44px/1.05 var(--f-body); letter-spacing: -.03em; }
 .cc-line { font: 600 13px var(--f-body); }
@@ -415,13 +423,20 @@ select.sel, .filt, .find input { background: var(--panel-2); border: 1px solid v
           <label class="tg"><input type="checkbox" id="t-wind"><span class="sw" style="background:linear-gradient(90deg,#a8c8ff,#9ff07a,#ffb347,#ff5cf0)"></span><span>Animated surface winds</span></label>
           <label class="tg"><input type="checkbox" id="t-sst"><span class="sw" style="background:linear-gradient(90deg,#2c3fbf,#2bbf9c,#f2c443,#d63a3a)"></span><span>Ocean temperatures</span></label>
         </div>
-        <div id="windkey" hidden><div class="cbar" style="background:linear-gradient(90deg,#6b86a3 0%,#2f80c8 15%,#1e9a62 30%,#c9a300 45%,#e07a12 60%,#d6332e 75%,#b0179b 100%)"></div><div class="cticks"><span>0</span><span>10</span><span>20</span><span>35</span><span>45</span><span>55</span><span>75 mph</span></div></div>
+        <div id="windkey" hidden><div class="cbar" style="background:linear-gradient(90deg,#a8c8ff 0%,#7fe0ff 15%,#9ff07a 30%,#fff06a 45%,#ffb347 60%,#ff6a5a 75%,#ff5cf0 100%)"></div><div class="cticks"><span>0</span><span>10</span><span>20</span><span>35</span><span>45</span><span>55</span><span>75 mph</span></div></div>
         <div id="sstkey" hidden></div>
       </section>
       <section class="sec">
-        <h2>Fronts &amp; pressure <button class="qh" aria-expanded="false" aria-controls="h-wpc" aria-label="What is this?">?</button></h2>
-        <p class="hint" id="h-wpc" hidden>The Weather Prediction Center's surface charts: cold and warm fronts, high and low pressure centers, and isobars (lines of equal pressure). Tight isobars mean strong wind.</p>
-        <label class="tg"><input type="checkbox" id="t-wpc"><span>Isobars, fronts, highs &amp; lows</span><span class="n" id="n-wpc"></span></label>
+        <h2>Pressure &amp; fronts <button class="qh" aria-expanded="false" aria-controls="h-wpc" aria-label="What is this?">?</button></h2>
+        <p class="hint" id="h-wpc" hidden><b>Isobars</b> are lines of equal sea-level pressure every 4 mb; tightly packed lines mean strong wind. <b>Upper-air heights</b> (in decameters) show the jet-level pattern: dips are troughs that bring storms, bulges are ridges that bring fair weather. Both come from the GFS model and follow the map's time. <b>Fronts, highs and lows</b> are drawn by the Weather Prediction Center.</p>
+        <label class="tg"><input type="checkbox" id="t-iso"><span>Isobars (sea-level pressure)</span></label>
+        <label class="tg"><input type="checkbox" id="t-hgt"><span>Upper-air heights</span></label>
+        <select class="sel" id="hgtsel" aria-label="Height level">
+          <option value="h500">500 mb · about 18,000 ft</option>
+          <option value="h250">250 mb · jet stream, about 34,000 ft</option>
+          <option value="h750">750 mb · about 8,000 ft</option>
+        </select>
+        <label class="tg" style="margin-top:6px"><input type="checkbox" id="t-wpc"><span>Fronts, highs &amp; lows (WPC)</span><span class="n" id="n-wpc"></span></label>
         <div class="wpcrow">
           <select class="sel" id="wpcsel" aria-label="Fronts and pressure chart time"><option value="auto">Match the map's time</option></select>
           <button id="wpcplay" aria-pressed="false" aria-label="Animate through day 7" title="Animate through day 7">▶</button>
@@ -430,7 +445,7 @@ select.sel, .filt, .find input { background: var(--panel-2); border: 1px solid v
           <span><b class="hl" style="color:#5aaaff">H</b>High</span><span><b class="hl" style="color:#ff5050">L</b>Low</span>
           <span><i class="fr" style="--c:#5aaaff"></i>Cold front</span><span><i class="fr" style="--c:#ff5050"></i>Warm front</span>
           <span><i class="fr" style="--c:#b04cff"></i>Occluded</span><span><i class="fr dash" style="--c:#ff8a2a"></i>Trough</span>
-          <span><i class="fr" style="--c:#e2ecf6"></i>Isobars (mb, every 4)</span>
+          <span><i class="fr" style="--c:#eef3f9"></i>Isobars (mb)</span><span><i class="fr" style="--c:#c8a5ff"></i>Heights (dam)</span>
         </div>
       </section>
       <section class="sec">
@@ -474,7 +489,7 @@ select.sel, .filt, .find input { background: var(--panel-2); border: 1px solid v
           <span class="cc-line" id="cc-line"></span>
           <span class="cc-range" id="cc-range"></span>
         </button>
-        <div class="validtag" id="validtag"><div class="k" id="vk">Radar</div><div class="v" id="vv">—</div><div class="s" id="vs"></div><div class="w" id="vw" hidden></div><div class="w" id="vwind" hidden></div><div class="w" id="vsst" hidden></div></div>
+        <div class="validtag" id="validtag"><div class="k" id="vk">Radar</div><div class="v" id="vv">—</div><div class="s" id="vs"></div><div class="w" id="vw" hidden></div><div class="w" id="vwind" hidden></div><div class="w" id="vsst" hidden></div><div class="w" id="vct" hidden></div></div>
         </div>
         <div class="mapbtns">
           <button id="zin" aria-label="Zoom in">+</button>
@@ -591,12 +606,13 @@ const S = {
   mode: "radar", field: "stp", frame: 0, playing: false, opacity: .85, spc: "day1otlk_cat",
   satKind: "ir",
   wpc: "auto",
-  show: { wind: false, sst: false, wpc: false, spc: true, alerts: true, sat: true, obs: true, rpts: true, ww: true, cty: true, roads: true, cities: true, water: true },
+  hgt: "h500",
+  show: { iso: false, hgt: false, wind: false, sst: false, wpc: false, spc: true, alerts: true, sat: true, obs: true, rpts: true, ww: true, cty: true, roads: true, cities: true, water: true },
   base: "terrain",
   t: d3.zoomIdentity, selected: null, chip: "all", filter: "",
 };
-const BASEMAP_V = "light1";  // bump when the basemap images are rebuilt (they are cached for a day)
-let D = {}, proj, BH, TR = null, TRW = null, WR = null, SR = null, imgs = { radar: [], hrrr: {}, wpc: [] }, probeCache = {}, paths = {}, fade = 1, lastStep = 0;
+const BASEMAP_V = "dark2";  // bump when the basemap images are rebuilt (they are cached for a day)
+let D = {}, proj, BH, TR = null, TRW = null, WR = null, SR = null, SWR = null, imgs = { radar: [], hrrr: {}, wpc: [] }, probeCache = {}, paths = {}, fade = 1, lastStep = 0;
 
 // ---------- helpers
 const fmtZ = iso => iso ? iso.slice(11, 16).replace(":", "") + "Z" : "";
@@ -634,6 +650,8 @@ async function boot() {
   // Wider, lower-resolution terrain and ocean depth: lets the view zoom out over the open ocean.
   const tw = await j("data/base/terrain_wide.json").catch(() => null);
   if (tw) { TRW = [(tw.x0 - f.x0) * k, (f.y1 - tw.y1) * k, (tw.x1 - f.x0) * k, (f.y1 - tw.y0) * k]; imgs.wide = loadImg("data/base/terrain_wide.jpg?v=" + BASEMAP_V).then(i => { imgs.wide = i; draw(); }); }
+  const swb = meta.satWide?.bounds;
+  if (swb) SWR = [(swb[0] - f.x0) * k, (f.y1 - swb[3]) * k, (swb[1] - f.x0) * k, (f.y1 - swb[2]) * k];
   const sb = meta.sst?.bounds;
   if (sb) SR = [(sb[0] - f.x0) * k, (f.y1 - sb[3]) * k, (sb[1] - f.x0) * k, (f.y1 - sb[2]) * k];
   buildWindUI();
@@ -772,9 +790,11 @@ function clampT(t) {
   const x = Math.min(-b[0] * k, Math.max(cw - b[2] * k, t.x)), y = Math.min(-b[1] * k, Math.max(ch - b[3] * k, t.y));
   return d3.zoomIdentity.translate(x, y).scale(k);
 }
+// Home view frames the lower 48, whatever the data frame's size.
 function homeT() {
-  const k = Math.max(minK(), Math.min(cw / BW, ch / BH) * 1.04);
-  return clampT(d3.zoomIdentity.translate(cw / 2 - BW / 2 * k, ch / 2 - BH * .52 * k).scale(k));
+  const a = proj([-125, 49.8]), b = proj([-66.5, 24.2]), w = b[0] - a[0], h = b[1] - a[1];
+  const k = Math.max(minK(), Math.min(cw / w, ch / h) * 1.04);
+  return clampT(d3.zoomIdentity.translate(cw / 2 - (a[0] + w / 2) * k, ch / 2 - (a[1] + h * .52) * k).scale(k));
 }
 function fitHome(anim = true) { d3.select(canvas).transition().duration(anim && !reduceMotion ? 600 : 0).call(zoom.transform, homeT()); }
 function zoomToBounds(b) {
@@ -821,7 +841,7 @@ function draw(now = performance.now()) {
   if (!proj || !paths.rivers) return;  // the terrain image can arrive before the paths are built
   const t = S.t, k = t.k;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.fillStyle = "#c8dcef"; ctx.fillRect(0, 0, cw, ch);
+  ctx.fillStyle = "#0b1826"; ctx.fillRect(0, 0, cw, ch);
   ctx.setTransform(dpr * k, 0, 0, dpr * k, dpr * t.x, dpr * t.y);
   ctx.imageSmoothingEnabled = true;
   const terrainOn = S.base === "terrain" && imgs.terrain instanceof HTMLImageElement;
@@ -831,16 +851,16 @@ function draw(now = performance.now()) {
   }
   if (terrainOn) ctx.drawImage(imgs.terrain, tr[0], tr[1], tr[2] - tr[0], tr[3] - tr[1]);
   else {
-    ctx.fillStyle = "#d5e6f5"; ctx.fillRect(tr[0], tr[1], tr[2] - tr[0], tr[3] - tr[1]);
-    ctx.fillStyle = "#e9ede6"; ctx.fill(paths.neighbors);
-    ctx.fillStyle = "#f6f7f3"; ctx.fill(paths.nation);
-    if (S.show.water) { ctx.fillStyle = "#d5e6f5"; ctx.fill(paths.lakes); }
+    ctx.fillStyle = "#0f2236"; ctx.fillRect(tr[0], tr[1], tr[2] - tr[0], tr[3] - tr[1]);
+    ctx.fillStyle = "#18222d"; ctx.fill(paths.neighbors);
+    ctx.fillStyle = "#1d2834"; ctx.fill(paths.nation);
+    if (S.show.water) { ctx.fillStyle = "#0f2236"; ctx.fill(paths.lakes); }
   }
   if (S.show.water) {
-    ctx.strokeStyle = "rgba(70,135,200,.55)"; ctx.lineWidth = Math.max(.5, 1.1 / Math.sqrt(k)) / k * Math.min(k, 3);
+    ctx.strokeStyle = "rgba(80,150,210,.5)"; ctx.lineWidth = Math.max(.5, 1.1 / Math.sqrt(k)) / k * Math.min(k, 3);
     ctx.stroke(paths.rivers);
   }
-  if (!terrainOn) { ctx.strokeStyle = "rgba(90,110,130,.35)"; ctx.lineWidth = .8 / k; ctx.stroke(paths.neighbors); }
+  if (!terrainOn) { ctx.strokeStyle = "rgba(160,180,200,.28)"; ctx.lineWidth = .8 / k; ctx.stroke(paths.neighbors); }
   ctx.imageSmoothingEnabled = k < 3;
 
   if (S.show.sst && SR) {
@@ -849,11 +869,11 @@ function draw(now = performance.now()) {
   }
   if (S.show.sat) {
     const si = satFor();
-    if (si) {
-      // On the light map, a faint offset shadow gives white clouds some depth.
-      ctx.save(); ctx.filter = "brightness(0) blur(2px)"; ctx.globalAlpha = .16; ctx.drawImage(si, 1.5 / k, 2.5 / k, BW, BH); ctx.restore();
-      ctx.globalAlpha = .95; ctx.drawImage(si, 0, 0, BW, BH); ctx.globalAlpha = 1;
-    }
+    // Full-disk clouds over the whole map first (latest scan), then the animated US scans on top.
+    const sw = satWideImg();
+    if (sw && SWR) { ctx.globalAlpha = .9; ctx.drawImage(sw, SWR[0], SWR[1], SWR[2] - SWR[0], SWR[3] - SWR[1]); }
+    if (si) { ctx.globalAlpha = .92; ctx.drawImage(si, 0, 0, BW, BH); }
+    ctx.globalAlpha = 1;
   }
 
   // Base raster with cross-fade between frames.
@@ -869,15 +889,19 @@ function draw(now = performance.now()) {
   if (S.show.spc) drawSpc(k);
 
   // Borders.
-  if (S.show.cty && k > 2.2) { ctx.strokeStyle = "rgba(90,110,130,.28)"; ctx.lineWidth = .6 / k; ctx.stroke(paths.counties); }
-  ctx.strokeStyle = "rgba(70,86,106,.55)"; ctx.lineWidth = 1.1 / k; ctx.stroke(paths.states);
-  ctx.strokeStyle = "rgba(60,100,140,.5)"; ctx.lineWidth = 1 / k; ctx.stroke(paths.coast);
+  if (S.show.cty && k > 2.2) { ctx.strokeStyle = "rgba(140,160,185,.28)"; ctx.lineWidth = .6 / k; ctx.stroke(paths.counties); }
+  ctx.strokeStyle = "rgba(200,215,230,.55)"; ctx.lineWidth = 1.1 / k; ctx.stroke(paths.states);
+  ctx.strokeStyle = "rgba(170,200,230,.45)"; ctx.lineWidth = 1 / k; ctx.stroke(paths.coast);
   if (S.show.roads) {
     const z = k / homeT().k;
-    if (z > 2.2) { ctx.strokeStyle = "rgba(170,150,120,.45)"; ctx.lineWidth = Math.min(1.4, .5 + z * .08) / k; ctx.stroke(paths.roadsMinor); }
-    ctx.strokeStyle = "rgba(255,255,255,.85)"; ctx.lineWidth = Math.min(3.6, 1.6 + z * .25) / k; ctx.stroke(paths.roadsMajor);
-    ctx.strokeStyle = "rgba(226,140,60,.8)"; ctx.lineWidth = Math.min(2, .8 + z * .15) / k; ctx.stroke(paths.roadsMajor);
+    if (z > 2.2) { ctx.strokeStyle = "rgba(190,175,150,.4)"; ctx.lineWidth = Math.min(1.4, .5 + z * .08) / k; ctx.stroke(paths.roadsMinor); }
+    ctx.strokeStyle = "rgba(8,14,22,.6)"; ctx.lineWidth = Math.min(3.6, 1.6 + z * .25) / k; ctx.stroke(paths.roadsMajor);
+    ctx.strokeStyle = "rgba(232,165,90,.78)"; ctx.lineWidth = Math.min(2, .8 + z * .15) / k; ctx.stroke(paths.roadsMajor);
   }
+
+  // Smooth GFS contours: heights under isobars.
+  if (S.show.hgt) { const cs = ctSet(S.hgt); if (cs) drawContourSet(cs, k); }
+  if (S.show.iso) { const cs = ctSet("p"); if (cs) drawContourSet(cs, k); }
 
   // WPC fronts and pressure.
   if (S.show.wpc && WR) {
@@ -888,7 +912,7 @@ function draw(now = performance.now()) {
   // Watches and mesoscale discussions.
   if (S.show.ww) {
     D.watches.features?.forEach(w => { const tor = /tor/i.test(w.properties?.type || ""); ctx.strokeStyle = tor ? "#ff2a2a" : "#ffd400"; ctx.lineWidth = 2.4 / k; ctx.stroke(w.path); });
-    D.mds.features?.forEach(m => { ctx.strokeStyle = "#2b7de9"; ctx.setLineDash([6 / k, 4 / k]); ctx.lineWidth = 2 / k; ctx.stroke(m.path); ctx.setLineDash([]); });
+    D.mds.features?.forEach(m => { ctx.strokeStyle = "#4a9bff"; ctx.setLineDash([6 / k, 4 / k]); ctx.lineWidth = 2 / k; ctx.stroke(m.path); ctx.setLineDash([]); });
   }
 
   // Alerts: county fills first (lowest priority under), then polygons with a pulse.
@@ -903,11 +927,11 @@ function draw(now = performance.now()) {
     for (let i = vis.length - 1; i >= 0; i--) {
       const a = vis[i]; if (!a.path || !a.poly) continue;
       ctx.fillStyle = a.color + "30"; ctx.fill(a.path);
-      ctx.strokeStyle = "rgba(255,255,255,.95)"; ctx.lineWidth = 4 / k; ctx.stroke(a.path);
+      ctx.strokeStyle = "rgba(8,14,22,.9)"; ctx.lineWidth = 4 / k; ctx.stroke(a.path);
       ctx.strokeStyle = a.color; ctx.globalAlpha = PULSE.has(a.event) ? pulse : 1; ctx.lineWidth = 2.6 / k; ctx.stroke(a.path); ctx.globalAlpha = 1;
     }
     if (S.selected?.path) {
-      ctx.strokeStyle = "#13202e"; ctx.lineWidth = 3 / k; ctx.setLineDash([8 / k, 5 / k]); ctx.lineDashOffset = reduceMotion ? 0 : -now / 60 / k; ctx.stroke(S.selected.path); ctx.setLineDash([]);
+      ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 3 / k; ctx.setLineDash([8 / k, 5 / k]); ctx.lineDashOffset = reduceMotion ? 0 : -now / 60 / k; ctx.stroke(S.selected.path); ctx.setLineDash([]);
     }
   }
 
@@ -915,11 +939,16 @@ function draw(now = performance.now()) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const sx = x => t.x + x * k, sy = y => t.y + y * k;
   if (S.show.wind) drawWind();
+  if (S.show.hgt || S.show.iso) {
+    const boxes = [], minorTags = k / homeT().k > 1.8;
+    if (S.show.hgt) { const cs = ctSet(S.hgt); if (cs) contourLabels(cs, t, boxes, minorTags); }
+    if (S.show.iso) { const cs = ctSet("p"); if (cs) contourLabels(cs, t, boxes, minorTags); }
+  }
   if (S.show.obs) drawObs(sx, sy, k);
   if (S.show.rpts) drawReports(sx, sy, k);
   if (S.show.cities) drawCities(sx, sy, k); else drawn = [];
   if (S.place) drawPlace(sx, sy);
-  if (S.hover) { ctx.strokeStyle = "#13202e"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(S.hover[0], S.hover[1], 5, 0, 7); ctx.stroke(); }
+  if (S.hover) { ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(S.hover[0], S.hover[1], 5, 0, 7); ctx.stroke(); }
 }
 
 function rasterFor(i) {
@@ -941,7 +970,7 @@ function drawSpc(k) {
   D.spc[sig]?.features?.forEach(f => { ctx.save(); ctx.globalAlpha = .7; ctx.fillStyle = paths.hatch; ctx.fill(f.path); ctx.restore(); ctx.strokeStyle = "#000"; ctx.lineWidth = 1.4 / k; ctx.setLineDash([5 / k, 3 / k]); ctx.stroke(f.path); ctx.setLineDash([]); });
 }
 
-const T_SCALE = [[-20,"#6b4fb0"],[0,"#5a3fb0"],[10,"#3f47b8"],[20,"#1f6fbf"],[32,"#1b86a8"],[40,"#1f8f66"],[50,"#4f8a1f"],[60,"#8f7f00"],[70,"#c46f00"],[80,"#c2410c"],[90,"#b42318"],[100,"#7a1030"]];
+const T_SCALE = [[-20,"#e3d9f2"],[0,"#b9a2e6"],[10,"#8f94ff"],[20,"#6fb1ff"],[32,"#6fd6f0"],[40,"#6fdcae"],[50,"#a6e070"],[60,"#f0de5c"],[70,"#ffb850"],[80,"#ff8a50"],[90,"#ff6060"],[100,"#ff7ab0"]];
 const tColor = f => { let c = T_SCALE[0][1]; for (const [v, col] of T_SCALE) if (f >= v) c = col; return c; };
 const cToF = c => c * 9 / 5 + 32;
 
@@ -956,14 +985,14 @@ function drawObs(sx, sy, k) {
     const cell = Math.floor(x / minGap) + "," + Math.floor(y / minGap); if (taken.has(cell)) continue; taken.add(cell);
     const tf = cToF(o.t);
     if (detailed || mid) drawBarb(x, y, o.wd, o.ws, detailed ? 22 : 15);
-    ctx.fillStyle = tColor(tf); ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.2;
+    ctx.fillStyle = tColor(tf); ctx.strokeStyle = "#0b1826"; ctx.lineWidth = 1.2;
     ctx.beginPath(); ctx.arc(x, y, detailed ? 4 : 3, 0, 7); ctx.fill(); ctx.stroke();
     if (detailed) {
-      ctx.lineWidth = 3; ctx.strokeStyle = "rgba(255,255,255,.92)";
+      ctx.lineWidth = 3; ctx.strokeStyle = "rgba(8,16,26,.9)";
       const tt = Math.round(tf), td = o.td != null ? Math.round(cToF(o.td)) : "";
       ctx.textAlign = "right"; ctx.strokeText(tt, x - 7, y - 8); ctx.fillStyle = tColor(tf); ctx.fillText(tt, x - 7, y - 8);
-      if (td !== "") { ctx.strokeText(td, x - 7, y + 9); ctx.fillStyle = "#17784c"; ctx.fillText(td, x - 7, y + 9); }
-      ctx.textAlign = "left"; ctx.fillStyle = "#4a5b6d"; ctx.strokeText(o.id, x + 7, y + 9); ctx.fillText(o.id, x + 7, y + 9);
+      if (td !== "") { ctx.strokeText(td, x - 7, y + 9); ctx.fillStyle = "#63d69f"; ctx.fillText(td, x - 7, y + 9); }
+      ctx.textAlign = "left"; ctx.fillStyle = "#a9b6c4"; ctx.strokeText(o.id, x + 7, y + 9); ctx.fillText(o.id, x + 7, y + 9);
     }
   }
 }
@@ -973,7 +1002,7 @@ function drawBarb(x, y, dir, spd, L) {
   const kt = Math.round(+spd / 5) * 5; if (kt < 5) return;
   const a = (+dir) * Math.PI / 180, ux = Math.sin(a), uy = -Math.cos(a), px = -uy, py = ux;
   const ex = x + ux * L, ey = y + uy * L;
-  ctx.strokeStyle = "rgba(40,55,75,.85)"; ctx.fillStyle = "rgba(40,55,75,.85)"; ctx.lineWidth = 1.3;
+  ctx.strokeStyle = "rgba(225,235,245,.85)"; ctx.fillStyle = "rgba(225,235,245,.85)"; ctx.lineWidth = 1.3;
   ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(ex, ey); ctx.stroke();
   let rem = kt, pos = 0; const step = L / 6, bl = L * .45;
   while (rem >= 50) { const bx = ex - ux * pos, by = ey - uy * pos; ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx + px * bl - ux * step * .5, by + py * bl - uy * step * .5); ctx.lineTo(bx - ux * step, by - uy * step); ctx.fill(); pos += step * 1.3; rem -= 50; }
@@ -994,17 +1023,17 @@ function drawCities(sx, sy, k) {
     const w = ctx.measureText(c.n).width, bx = [x - 4, y - 8, x + 8 + w, y + 8];
     if (boxes.some(b => bx[0] < b[2] && bx[2] > b[0] && bx[1] < b[3] && bx[3] > b[1])) continue;
     boxes.push(bx); drawn.push({ c, bx });
-    ctx.fillStyle = "#13202e"; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5;
+    ctx.fillStyle = "#e8eef5"; ctx.strokeStyle = "#0b1826"; ctx.lineWidth = 1.5;
     ctx.beginPath(); c.cap ? ctx.rect(x - 3, y - 3, 6, 6) : ctx.arc(x, y, big ? 3.2 : 2.5, 0, 7); ctx.fill(); ctx.stroke();
-    ctx.lineWidth = 3.5; ctx.strokeStyle = "rgba(255,255,255,.92)"; ctx.strokeText(c.n, x + 6, y);
-    ctx.fillStyle = big ? "#13202e" : "#34465a"; ctx.fillText(c.n, x + 6, y);
+    ctx.lineWidth = 3.5; ctx.strokeStyle = "rgba(8,16,26,.9)"; ctx.strokeText(c.n, x + 6, y);
+    ctx.fillStyle = big ? "#ffffff" : "#d5dee8"; ctx.fillText(c.n, x + 6, y);
   }
 }
 
 function drawReports(sx, sy) {
   for (const r of D.reports) {
     const x = sx(r.x), y = sy(r.y);
-    ctx.lineWidth = 1.5; ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 1.5; ctx.strokeStyle = "#0b1826";
     if (r.t === "torn") { ctx.fillStyle = "#ff2020"; ctx.beginPath(); ctx.moveTo(x, y - 7); ctx.lineTo(x + 6.5, y + 5); ctx.lineTo(x - 6.5, y + 5); ctx.closePath(); ctx.fill(); ctx.stroke(); }
     else if (r.t === "wind") { ctx.fillStyle = "#3d7cff"; ctx.fillRect(x - 4.5, y - 4.5, 9, 9); ctx.strokeRect(x - 4.5, y - 4.5, 9, 9); }
     else { ctx.fillStyle = "#26c447"; ctx.beginPath(); ctx.arc(x, y, 5, 0, 7); ctx.fill(); ctx.stroke(); }
@@ -1088,10 +1117,10 @@ const PRESETS = [
   ["severe", "Severe storms", { mode: "hrrr", field: "stp", spc: "day1otlk_cat", show: { alerts: true, ww: true, spc: true, sat: false, wind: false, sst: false, wpc: false } }],
   ["rain", "Rain & flooding", { mode: "hrrr", field: "refc", show: { alerts: true, sat: true, spc: false, wind: false, sst: false, wpc: false } }],
   ["temp", "Temperature", { mode: "hrrr", field: "t2", show: { sat: false, spc: false, wind: false, sst: false, wpc: false } }],
-  ["fronts", "Winds & fronts", { mode: "radar", show: { wind: true, wpc: true, sat: true, spc: false, sst: false } }],
+  ["fronts", "Winds & fronts", { mode: "radar", show: { wind: true, wpc: true, iso: true, sat: true, spc: false, sst: false } }],
   ["ocean", "Ocean temps", { mode: "none", show: { sst: true, wind: true, sat: false, spc: false, wpc: false }, zoomOut: true }],
 ];
-const SHOW_IDS = { alerts: "t-alerts", sat: "t-sat", spc: "t-spc", wind: "t-wind", sst: "t-sst", wpc: "t-wpc", ww: "t-ww", obs: "t-obs", rpts: "t-rpts", roads: "t-roads", cities: "t-cities", water: "t-water", cty: "t-cty" };
+const SHOW_IDS = { iso: "t-iso", hgt: "t-hgt", alerts: "t-alerts", sat: "t-sat", spc: "t-spc", wind: "t-wind", sst: "t-sst", wpc: "t-wpc", ww: "t-ww", obs: "t-obs", rpts: "t-rpts", roads: "t-roads", cities: "t-cities", water: "t-water", cty: "t-cty" };
 let restoring = false;
 function setShow(k, on) {
   const cb = $(SHOW_IDS[k]); if (!cb || cb.disabled || cb.checked === on) return;
@@ -1104,6 +1133,7 @@ function applyView(v) {
   restoring = true;
   if (v.field) setField(v.field);
   if (v.mode && v.mode !== S.mode) setMode(v.mode);
+  if (v.hgt) { S.hgt = v.hgt; $("hgtsel").value = v.hgt; }
   if (v.spc && $("spcsel").value !== v.spc) { $("spcsel").value = v.spc; $("spcsel").dispatchEvent(new Event("change")); }
   Object.entries(v.show || {}).forEach(([k, on]) => setShow(k, on));
   restoring = false;
@@ -1122,7 +1152,7 @@ function buildPresets() {
 const store = { get: k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
 function saveSettings() {
   if (restoring || !D.meta) return;
-  store.set("csw.settings", { mode: S.mode, field: S.field, spc: S.spc, show: { ...S.show } });
+  store.set("csw.settings", { mode: S.mode, field: S.field, spc: S.spc, hgt: S.hgt, show: { ...S.show } });
 }
 function restoreSettings() {
   buildPresets();
@@ -1202,7 +1232,7 @@ $("spcsel").onchange = e => { S.spc = e.target.value; spcKey(); draw(); };
 // ---------- GFS winds (animated particles) and ocean temperatures
 const W = { grid: null, hour: null, parts: [], trail: null, tctx: null, lastT: null, loading: null };
 const SST = { grid: null, img: undefined };
-const WIND_COLORS = [[0, "#6b86a3"], [4.5, "#2f80c8"], [9, "#1e9a62"], [15.5, "#c9a300"], [20, "#e07a12"], [24.5, "#d6332e"], [33.5, "#b0179b"]];
+const WIND_COLORS = [[0, "#a8c8ff"], [4.5, "#7fe0ff"], [9, "#9ff07a"], [15.5, "#fff06a"], [20, "#ffb347"], [24.5, "#ff6a5a"], [33.5, "#ff5cf0"]];
 const compass = d => ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"][Math.round(d / 22.5) % 16];
 // Grids ship as gzip + base64 text. Older iPhones (before iOS 16.4) lack DecompressionStream, so fall back to pako.
 let pakoLoad = null;
@@ -1253,6 +1283,12 @@ async function ensureSst() {
   $("vsst").textContent = `Ocean temps: ${fmtLocal(m.valid)} · GFS analysis`;
   if (!SST.grid) SST.grid = gunzipB64(await fetch(`${m.probe.src}?v=${D.meta.built}`).then(r => r.text())).then(b => (SST.grid = new Int16Array(b)));
   draw();
+}
+function satWideImg() {
+  if (!D.meta.satWide) return null;
+  if (imgs.satWide !== undefined) return imgs.satWide;
+  imgs.satWide = null; loadImg(`${D.meta.satWide.src}?v=${D.meta.built}`).then(i => { imgs.satWide = i; draw(); });
+  return null;
 }
 function sstImg() {
   if (SST.img !== undefined) return SST.img;
@@ -1317,6 +1353,112 @@ function drawWind() {
   ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.drawImage(W.trail, 0, 0); ctx.restore();
 }
 
+// ---------- smooth contour lines (sea-level isobars, 250/500/750 mb heights)
+// Shared by both tabs. vals: grid values (north row first); toXY(gx, gy) maps grid coordinates to map space.
+const CONTOUR = {
+  p: { step: 4, major: 20, color: "rgba(236,242,250,.82)", label: v => String(Math.round(v)), name: "Sea-level pressure", unit: "mb" },
+  h250: { step: 120, major: 480, color: "rgba(200,165,255,.95)", label: v => String(Math.round(v / 10)), name: "250 mb height", unit: "dam" },
+  h500: { step: 60, major: 300, color: "rgba(200,165,255,.95)", label: v => String(Math.round(v / 10)), name: "500 mb height", unit: "dam" },
+  h750: { step: 30, major: 150, color: "rgba(200,165,255,.95)", label: v => String(Math.round(v / 10)), name: "750 mb height", unit: "dam" },
+};
+function contourLines(vals, nx, ny, step, toXY) {
+  let lo = Infinity, hi = -Infinity;
+  for (const v of vals) if (isFinite(v)) { if (v < lo) lo = v; if (v > hi) hi = v; }
+  const th = d3.range(Math.ceil(lo / step) * step, hi, step), lines = [];
+  for (const c of d3.contours().size([nx, ny]).thresholds(th)(vals)) {
+    for (const poly of c.coordinates) for (const ring of poly) {
+      let cur = [];
+      for (const [x, y] of ring) {
+        // d3 closes rings along the grid's edge; those segments aren't real contours.
+        if (x <= 0.01 || y <= 0.01 || x >= nx - 0.01 || y >= ny - 0.01) { if (cur.length > 2) lines.push({ v: c.value, pts: cur }); cur = []; continue; }
+        cur.push(toXY(x - 0.5, y - 0.5));
+      }
+      if (cur.length > 2) lines.push({ v: c.value, pts: cur });
+    }
+  }
+  return lines;
+}
+// Curves through segment midpoints (quadratic smoothing) so lines read as smooth, not stair-stepped.
+function smoothPath(lines, keep) {
+  const p = new Path2D();
+  for (const l of lines) {
+    if (!keep(l)) continue;
+    const q = l.pts; p.moveTo(q[0][0], q[0][1]);
+    for (let i = 1; i < q.length - 1; i++) p.quadraticCurveTo(q[i][0], q[i][1], (q[i][0] + q[i + 1][0]) / 2, (q[i][1] + q[i + 1][1]) / 2);
+    p.lineTo(q.at(-1)[0], q.at(-1)[1]);
+  }
+  return p;
+}
+function contourSet(key, vals, nx, ny, toXY) {
+  const c = CONTOUR[key], lines = contourLines(vals, nx, ny, c.step, toXY);
+  const isMajor = l => Math.abs(l.v % c.major) < 1e-6;
+  return { key, lines, minor: smoothPath(lines, l => !isMajor(l)), major: smoothPath(lines, isMajor), isMajor };
+}
+// Draw in map space (ctx already scaled by k), dark halo underneath for contrast over clouds and radar.
+function drawContourSet(cs, k) {
+  const c = CONTOUR[cs.key];
+  ctx.lineJoin = ctx.lineCap = "round";
+  ctx.strokeStyle = "rgba(6,12,20,.55)";
+  ctx.lineWidth = 4 / k; ctx.stroke(cs.minor); ctx.lineWidth = 5.4 / k; ctx.stroke(cs.major);
+  ctx.strokeStyle = c.color;
+  ctx.lineWidth = 1.6 / k; ctx.stroke(cs.minor); ctx.lineWidth = 2.8 / k; ctx.stroke(cs.major);
+}
+// Value tags along each line, in screen space, spaced out and never overlapping.
+function contourLabels(cs, t, boxes, minorTags) {
+  const c = CONTOUR[cs.key], out = [];
+  const spacing = 420, margin = 24;
+  ctx.font = "600 11px Inter, -apple-system, system-ui, sans-serif";
+  for (const l of cs.lines) {
+    if (!cs.isMajor(l) && !minorTags) continue;   // minor lines get tags once zoomed in
+    let dist = 0, next = 140, px = null, py = null;
+    for (const [bx, by] of l.pts) {
+      const x = t.x + bx * t.k, y = t.y + by * t.k;
+      if (px != null) dist += Math.hypot(x - px, y - py);
+      px = x; py = y;
+      if (dist < next) continue;
+      next = dist + spacing;
+      if (x < margin || y < margin || x > cw - margin || y > ch - margin) continue;
+      const text = c.label(l.v), w = ctx.measureText(text).width + 10, box = [x - w / 2, y - 8, x + w / 2, y + 8];
+      if (boxes.some(b => box[0] < b[2] && box[2] > b[0] && box[1] < b[3] && box[3] > b[1])) continue;
+      boxes.push(box); out.push({ x, y, w, text });
+    }
+  }
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for (const l of out) {
+    ctx.fillStyle = "rgba(14,22,32,.88)"; ctx.beginPath(); ctx.roundRect(l.x - l.w / 2, l.y - 8, l.w, 16, 8); ctx.fill();
+    ctx.strokeStyle = c.color; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = "#f2f6fa"; ctx.fillText(l.text, l.x, l.y + .5);
+  }
+}
+
+// US tab: 0.25-degree GFS grids around the Americas, matched to the map's time like the winds.
+const CT = { grids: new Map(), sets: new Map() };
+function ctHour() {
+  const hs = D.meta.contours?.hours || []; if (!hs.length) return null;
+  const f = frameList()[S.frame], t = S.mode === "hrrr" && f ? tIso(f.valid) : Date.now();
+  return hs.reduce((a, b) => Math.abs(tIso(b.valid) - t) < Math.abs(tIso(a.valid) - t) ? b : a);
+}
+function ctSet(key) {
+  const m = D.meta.contours, h = ctHour(); if (!h || !h.files[key]) return null;
+  const id = key + ":" + h.fh;
+  if (CT.sets.has(id)) return CT.sets.get(id);
+  const src = h.files[key], g = CT.grids.get(src);
+  if (!g) {
+    CT.grids.set(src, "loading");
+    fetch(`${src}?v=${D.meta.built}`).then(r => r.text()).then(gunzipB64).then(b => { CT.grids.set(src, new Int16Array(b)); draw(); }).catch(() => CT.grids.delete(src));
+    return null;
+  }
+  if (g === "loading") return null;
+  const sc = key === "p" ? m.scale.p : m.scale.h, vals = Float64Array.from(g, v => v === -32768 ? NaN : v / sc);
+  const cs = contourSet(key, vals, m.nx, m.ny, (gx, gy) => proj([m.lon0 + gx * m.d, m.lat0 - gy * m.d]));
+  CT.sets.set(id, cs);
+  const lv = [S.show.iso && "isobars", S.show.hgt && CONTOUR[S.hgt].name.replace(" height", " heights")].filter(Boolean).join(" + ");
+  $("vct").hidden = false; $("vct").textContent = `${lv[0].toUpperCase() + lv.slice(1)}: ${fmtLocal(h.valid)} · GFS`;
+  return cs;
+}
+$("hgtsel").onchange = e => { S.hgt = e.target.value; if (!S.show.hgt) { $("t-hgt").checked = true; $("t-hgt").dispatchEvent(new Event("change")); } saveSettings(); draw(); };
+["t-iso", "t-hgt"].forEach(id => $(id).addEventListener("change", () => { $("vct").hidden = !(S.show.iso || S.show.hgt); draw(); }));
+
 // ---------- WPC fronts and pressure
 const wpcFrames = () => D.meta.wpc?.frames || [];
 const wpcLabel = f => new Date(f.valid.replace(/Z$/, ":00Z")).toLocaleString([], { weekday: "short", hour: "numeric", timeZoneName: "short" });
@@ -1358,7 +1500,7 @@ function wpcAnimate(on) {
 $("wpcsel").onchange = e => { wpcAnimate(false); S.wpc = e.target.value; if (!S.show.wpc) { S.show.wpc = true; $("t-wpc").checked = true; } draw(); };
 $("wpcplay").onclick = () => wpcAnimate(!wpcTimer);
 $("t-wpc").addEventListener("change", e => { if (!e.target.checked) { wpcAnimate(false); $("vw").hidden = true; } });
-[["t-wind", "wind"], ["t-sst", "sst"], ["t-wpc", "wpc"], ["t-roads", "roads"], ["t-cities", "cities"], ["t-water", "water"], ["t-spc", "spc"], ["t-alerts", "alerts"], ["t-sat", "sat"], ["t-obs", "obs"], ["t-rpts", "rpts"], ["t-ww", "ww"], ["t-cty", "cty"]]
+[["t-iso", "iso"], ["t-hgt", "hgt"], ["t-wind", "wind"], ["t-sst", "sst"], ["t-wpc", "wpc"], ["t-roads", "roads"], ["t-cities", "cities"], ["t-water", "water"], ["t-spc", "spc"], ["t-alerts", "alerts"], ["t-sat", "sat"], ["t-obs", "obs"], ["t-rpts", "rpts"], ["t-ww", "ww"], ["t-cty", "cty"]]
   .forEach(([id, k]) => $(id).onchange = e => { S.show[k] = e.target.checked; draw(); kick(); });
 
 function spcKey() {
@@ -1484,8 +1626,8 @@ function selectPlace(c, zoom) {
 }
 function drawPlace(sx, sy) {
   const x = sx(S.place.x), y = sy(S.place.y);
-  ctx.strokeStyle = "#2b7de9"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(x, y, 9, 0, 7); ctx.stroke();
-  ctx.strokeStyle = "rgba(255,255,255,.95)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 12, 0, 7); ctx.stroke();
+  ctx.strokeStyle = "#4a9bff"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(x, y, 9, 0, 7); ctx.stroke();
+  ctx.strokeStyle = "rgba(8,16,26,.9)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 12, 0, 7); ctx.stroke();
 }
 
 function renderPlace() {
