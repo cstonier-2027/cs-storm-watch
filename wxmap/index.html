@@ -49,6 +49,9 @@ header.top {
 .brand h1 i { font-style: normal; text-transform: none; }
 .brand span { font: 500 12px var(--f-mono); color: var(--ink-3); letter-spacing: .06em; }
 .stamps { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+.tabs { display: flex; gap: 2px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 3px; }
+.tabs a { font: 600 13px var(--f-display); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); text-decoration: none; padding: 5px 12px; border-radius: 5px; }
+.tabs a[aria-current="page"] { background: var(--accent); color: #04121c; }
 .stamp { font: 500 11.5px var(--f-mono); color: var(--ink-2); background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 4px 8px; white-space: nowrap; }
 .stamp em { font-style: normal; color: var(--ink-3); margin-right: 6px; text-transform: uppercase; letter-spacing: .08em; }
 
@@ -246,6 +249,7 @@ canvas#map { position: absolute; inset: 0; width: 100%; height: 100%; display: b
 <div class="app">
   <header class="top">
     <div class="brand"><h1>CS<i>'s</i> Storm <b>Watch</b></h1><span>CONUS · NWS / SPC / NCEP</span></div>
+    <nav class="tabs" aria-label="View"><a href="index.html" aria-current="page">United States</a><a href="global.html">Global</a></nav>
     <button class="fcbtn" id="fcbtn" aria-pressed="false">Forecast</button>
     <div class="stamps" id="stamps"></div>
   </header>

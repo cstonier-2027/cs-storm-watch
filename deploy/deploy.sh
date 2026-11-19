@@ -16,6 +16,7 @@ rm -rf "$SITE"; mkdir -p "$SITE"
 # The page is written without a doctype (claude.ai adds one); add it here so browsers use standards mode.
 { echo "<!doctype html>"; cat "$SRC/index.html"; } > "$SITE/index.html"
 cp "$SRC/apple-touch-icon.png" "$SRC/icon-512.png" "$SITE/"
+cp "$SRC/global.html" "$SITE/"
 rsync -a --exclude 'summary_*' "$SRC/data/" "$SITE/data/"
 # Data changes every 30 min; the basemap never does.
 cat > "$SITE/_headers" <<'H'
@@ -24,6 +25,8 @@ cat > "$SITE/_headers" <<'H'
 /data/base/*
   Cache-Control: public, max-age=86400
 /index.html
+  Cache-Control: no-cache
+/global.html
   Cache-Control: no-cache
 H
 

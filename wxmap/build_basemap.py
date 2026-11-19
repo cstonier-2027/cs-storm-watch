@@ -186,6 +186,30 @@ def build_wide():
     print("terrain_wide.jpg", TW, TH, os.path.getsize(os.path.join(OUT, "terrain_wide.jpg")) // 1024, "KB")
 
 
+def build_world():
+    """Land, coastlines and country borders for the Global tab (Natural Earth 1:50m / 1:110m)."""
+    def strip(fc, nd):
+        feats = []
+        for f in fc["features"]:
+            g = f["geometry"]
+            if not g:
+                continue
+            if g["type"] in ("Polygon", "MultiPolygon"):
+                polys = g["coordinates"] if g["type"] == "MultiPolygon" else [g["coordinates"]]
+                g = {"type": "MultiPolygon", "coordinates": [[rnd(r, nd) for r in p] for p in polys]}
+            else:
+                parts = g["coordinates"] if g["type"] == "MultiLineString" else [g["coordinates"]]
+                g = {"type": "MultiLineString", "coordinates": [rnd(c, nd) for c in parts if len(c) > 1]}
+            feats.append({"type": "Feature", "properties": {}, "geometry": g})
+        return {"type": "FeatureCollection", "features": feats}
+    world = {"land": strip(cached_json("ne_50m_land.geojson"), 2),
+             "borders": strip(cached_json("ne_50m_admin_0_boundary_lines_land.geojson"), 2),
+             "lakes": strip({"type": "FeatureCollection", "features": [f for f in cached_json("ne_50m_lakes.geojson")["features"]
+                                                                       if (f["properties"].get("scalerank") or 9) <= 1]}, 2)}
+    json.dump(world, open(os.path.join(OUT, "world.json"), "w"), separators=(",", ":"))
+    print("world.json", os.path.getsize(os.path.join(OUT, "world.json")) // 1024, "KB")
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     countries = cached_json("ne_10m_admin_0_countries_lakes.geojson")
@@ -254,4 +278,4 @@ def main():
 
 if __name__ == "__main__":
     import sys
-    build_wide() if "--wide" in sys.argv else main()
+    build_wide() if "--wide" in sys.argv else build_world() if "--world" in sys.argv else main()

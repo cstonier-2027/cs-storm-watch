@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CS's Storm Watch · Global</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Storm Watch">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a1119">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-512.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Global view: one world map, a layer picker on the left, a 48-hour timeline under the map. Same look as the US page. */
+:root {
+  --ink: #e6edf3; --ink-2: #9aabbd; --ink-3: #66788c;
+  --panel: #111a24; --panel-2: #172331; --stage: #0a1119; --ocean: #0d1824; --line: #2a3a4c;
+  --accent: #5cc8ff; --adv: #6fd3a0; --watch: #ffb020;
+  --f-display: "Saira Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: dark;
+}
+html, body { height: 100%; margin: 0; }
+[hidden] { display: none !important; }
+body { background: var(--stage); color: var(--ink); font: 14px/1.45 var(--f-body); overflow: hidden; }
+* { box-sizing: border-box; }
+button, select, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.app { height: 100%; display: grid; grid-template-rows: auto 1fr; }
+header.top { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); border-bottom: 1px solid var(--line); background: var(--panel); }
+.brand h1 { margin: 0; font: 700 26px/1 var(--f-display); letter-spacing: .04em; text-transform: uppercase; }
+.brand h1 b { color: var(--accent); }
+.brand h1 i { font-style: normal; text-transform: none; }
+.tabs { display: flex; gap: 2px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 3px; }
+.tabs a { font: 600 13px var(--f-display); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); text-decoration: none; padding: 5px 12px; border-radius: 5px; }
+.tabs a[aria-current="page"] { background: var(--accent); color: #04121c; }
+.stamps { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+.stamp { font: 500 11.5px var(--f-mono); color: var(--ink-2); background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 4px 8px; white-space: nowrap; }
+.stamp em { font-style: normal; color: var(--ink-3); margin-right: 6px; text-transform: uppercase; letter-spacing: .08em; }
+.live { display: inline-flex; align-items: center; gap: 7px; font: 500 11.5px var(--f-mono); background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px 4px 8px; white-space: nowrap; }
+.live i { width: 8px; height: 8px; border-radius: 50%; background: var(--adv); animation: ping 2.4s ease-out infinite; }
+.live.stale i { background: var(--watch); animation: none; }
+@keyframes ping { 0% { box-shadow: 0 0 0 0 rgba(111,211,160,.55); } 70%, 100% { box-shadow: 0 0 0 7px rgba(111,211,160,0); } }
+
+.body { min-height: 0; display: grid; grid-template-columns: 272px minmax(0, 1fr); }
+.rail { min-height: 0; overflow-y: auto; background: var(--panel); border-right: 1px solid var(--line); padding: 14px; display: flex; flex-direction: column; gap: 18px; }
+.sec h2 { margin: 0 0 8px; font: 600 13px var(--f-display); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-2); display: flex; justify-content: space-between; align-items: baseline; }
+.sec h2 small { font: 400 11px var(--f-mono); letter-spacing: 0; text-transform: none; color: var(--ink-3); }
+.layers { display: grid; gap: 2px; }
+.layers button { display: flex; align-items: center; gap: 10px; text-align: left; border: 1px solid transparent; background: transparent; padding: 7px 8px; border-radius: 6px; cursor: pointer; color: var(--ink-2); }
+.layers button:hover { background: var(--panel-2); color: var(--ink); }
+.layers button[aria-pressed="true"] { border-color: var(--accent); color: var(--ink); background: var(--panel-2); }
+.layers .sw { width: 22px; height: 10px; border-radius: 2px; flex: none; }
+.layers .u { margin-left: auto; font: 11px var(--f-mono); color: var(--ink-3); }
+.toggles { display: grid; gap: 6px; }
+.tg { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 3px 0; }
+.tg input { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }
+.tg .sw { width: 10px; height: 10px; border-radius: 2px; flex: none; }
+select.sel { width: 100%; background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; margin-top: 4px; }
+.range { display: flex; align-items: center; gap: 10px; font: 11px var(--f-mono); color: var(--ink-3); }
+.range input { flex: 1; accent-color: var(--accent); }
+.cbar { height: 12px; border-radius: 3px; border: 1px solid var(--line); }
+.cticks { display: flex; justify-content: space-between; font: 10.5px var(--f-mono); color: var(--ink-2); margin-top: 3px; }
+.lcap { font: 11px var(--f-mono); color: var(--ink-3); margin-top: 4px; }
+.keyrow { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12px; color: var(--ink-2); margin-top: 8px; }
+.keyrow span { display: inline-flex; align-items: center; gap: 6px; }
+.keyrow b { font: 700 14px var(--f-display); }
+.note { font-size: 12px; color: var(--ink-3); }
+.note a { color: var(--accent); }
+
+.stage { position: relative; min-width: 0; min-height: 0; display: grid; grid-template-rows: 1fr auto; background: var(--ocean); }
+.mapwrap { position: relative; min-height: 0; overflow: hidden; cursor: grab; touch-action: none; }
+.mapwrap:active { cursor: grabbing; }
+.mapwrap::after { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 1; box-shadow: inset 0 0 90px rgba(4, 10, 18, .55); }
+canvas#map { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.validtag { position: absolute; left: 12px; top: 12px; z-index: 2; pointer-events: none; background: rgba(10,17,25,.6); -webkit-backdrop-filter: blur(12px) saturate(1.3); backdrop-filter: blur(12px) saturate(1.3); border: 1px solid rgba(154,171,189,.22); border-radius: 12px; padding: 8px 12px; box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+.validtag .k { font: 600 11px var(--f-display); letter-spacing: .16em; text-transform: uppercase; color: var(--accent); }
+.validtag .v { font: 500 15px var(--f-mono); }
+.validtag .s { font: 11px var(--f-mono); color: var(--ink-3); }
+.mapbtns { position: absolute; right: 12px; top: 12px; display: grid; gap: 8px; z-index: 2; }
+.mapbtns button { width: 36px; height: 36px; border-radius: 10px; border: 1px solid rgba(154,171,189,.22); background: rgba(14,22,32,.62); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); cursor: pointer; font: 600 18px var(--f-mono); }
+.mapbtns button:hover { border-color: var(--accent); }
+.probe { position: absolute; pointer-events: none; z-index: 3; min-width: 190px; background: rgba(10,17,25,.8); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border-radius: 10px; border: 1px solid var(--line); padding: 8px 10px; font: 12px/1.5 var(--f-mono); box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+.probe .h { font: 600 13px var(--f-body); margin-bottom: 4px; }
+.probe .r { display: flex; justify-content: space-between; gap: 14px; }
+.probe .r span:first-child { color: var(--ink-3); }
+.loading { position: absolute; inset: 0; display: grid; place-items: center; font: 600 15px var(--f-display); letter-spacing: .2em; text-transform: uppercase; color: var(--ink-2); z-index: 4; background: var(--ocean); }
+.timeline { display: grid; grid-template-columns: auto auto auto minmax(0, 1fr); align-items: center; gap: 10px; padding: 10px 14px; background: var(--panel); border-top: 1px solid var(--line); }
+.timeline button { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel-2); cursor: pointer; display: grid; place-items: center; }
+.timeline button.play { width: 40px; height: 40px; background: var(--accent); border-color: var(--accent); color: #04121c; }
+.timeline svg { width: 14px; height: 14px; fill: currentColor; }
+.ticks { position: relative; display: grid; gap: 4px; }
+.bars { display: grid; grid-auto-flow: column; gap: 3px; height: 14px; }
+.bars i { background: var(--panel-2); border: 1px solid var(--line); border-radius: 2px; }
+.bars i.past { background: #2a4258; }
+.bars i.on { background: var(--accent); border-color: var(--accent); }
+.ticks input { position: absolute; inset: 0; opacity: 0; width: 100%; cursor: pointer; margin: 0; }
+.lab { display: flex; justify-content: space-between; font: 10.5px var(--f-mono); color: var(--ink-3); }
+
+@media (max-width: 860px) {
+  body { overflow: auto; }
+  .app { height: auto; }
+  .body { grid-template-columns: minmax(0, 1fr); }
+  .stage { order: -1; height: 68vh; min-height: 380px; }
+  .rail { border: 0; border-top: 1px solid var(--line); overflow: visible; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .stamps .stamp { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .live i { animation: none; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand"><h1>CS<i>'s</i> Storm <b>Watch</b></h1></div>
+    <nav class="tabs" aria-label="View"><a href="index.html">United States</a><a href="global.html" aria-current="page">Global</a></nav>
+    <div class="stamps" id="stamps"></div>
+  </header>
+  <div class="body">
+    <aside class="rail" aria-label="Global layers">
+      <section class="sec">
+        <h2>Map layer</h2>
+        <div class="layers" id="layers"></div>
+      </section>
+      <section class="sec">
+        <h2>Legend <small id="legunit"></small></h2>
+        <div id="legend"></div>
+      </section>
+      <section class="sec">
+        <h2>Overlays</h2>
+        <div class="toggles">
+          <label class="tg"><input type="checkbox" id="t-wind" checked><span class="sw" style="background:linear-gradient(90deg,#a8c8ff,#9ff07a,#ffb347,#ff5cf0)"></span><span>Animated winds</span></label>
+          <select class="sel" id="windsel" aria-label="Wind level">
+            <option value="w10">Surface winds</option>
+            <option value="w250">Jet stream (34,000 ft)</option>
+          </select>
+          <label class="tg" style="margin-top:6px"><input type="checkbox" id="t-iso" checked><span class="sw" style="background:#e2ecf6"></span><span>Isobars, highs &amp; lows</span></label>
+          <label class="tg"><input type="checkbox" id="t-ice" checked><span class="sw" style="background:#eaf4ff"></span><span>Sea ice</span></label>
+        </div>
+        <div class="keyrow"><span><b style="color:#5aaaff">H</b>High pressure</span><span><b style="color:#ff6060">L</b>Low pressure</span></div>
+      </section>
+      <section class="sec">
+        <div class="range"><label for="op">Layer opacity</label><input id="op" type="range" min="20" max="100" value="85"><span id="opv">85%</span></div>
+      </section>
+      <p class="note">Data: NCEP GFS global model (1° grid), refreshed with the rest of the map. Ocean temperatures and sea ice are the latest analysis; other layers run 48 hours ahead every 6 hours. Coastlines: Natural Earth.</p>
+    </aside>
+
+    <main class="stage">
+      <div class="mapwrap" id="mapwrap">
+        <canvas id="map" aria-label="World weather map"></canvas>
+        <div class="validtag"><div class="k" id="vk">—</div><div class="v" id="vv">—</div><div class="s" id="vs"></div></div>
+        <div class="mapbtns">
+          <button id="zin" aria-label="Zoom in">+</button>
+          <button id="zout" aria-label="Zoom out">−</button>
+          <button id="zhome" aria-label="Reset view" style="font-size:13px">⌂</button>
+        </div>
+        <div class="probe" id="probe" hidden></div>
+        <div class="loading" id="loading">Loading world data…</div>
+      </div>
+      <div class="timeline">
+        <button id="prev" aria-label="Previous time"><svg viewBox="0 0 16 16"><path d="M3 2h2v12H3zM14 2v12L6 8z"/></svg></button>
+        <button id="play" class="play" aria-label="Play"><svg viewBox="0 0 16 16" id="playicon"><path d="M4 2l10 6-10 6z"/></svg></button>
+        <button id="next" aria-label="Next time"><svg viewBox="0 0 16 16"><path d="M11 2h2v12h-2zM2 2v12l8-6z"/></svg></button>
+        <div class="ticks"><div class="bars" id="bars"></div><div class="lab"><span id="lab0"></span><span id="lab1"></span></div><input type="range" id="slider" min="0" max="0" value="0" aria-label="Forecast time"></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script>
+(() => {
+"use strict";
+const $ = id => document.getElementById(id);
+const canvas = $("map"), ctx = canvas.getContext("2d"), wrap = $("mapwrap");
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+// Map space: equirectangular world, 2048 x 1024 base pixels.
+const BW = 2048, BH = 1024;
+const bx = lon => (lon + 180) / 360 * BW, by = lat => (90 - lat) / 180 * BH;
+const lonOf = x => x / BW * 360 - 180, latOf = y => 90 - y / BH * 180;
+
+// Color scales: [value, color]. Values below the first stop are transparent unless `floor` is set.
+const LAYERS = {
+  sst: { name: "Ocean temperature", unit: "°F", static: true, stops: [[28, "#3b1c8c"], [36, "#2c3fbf"], [44, "#1f78d1"], [50, "#20a4c8"], [56, "#2bbf9c"], [62, "#6ccf5a"], [68, "#c6d84a"], [72, "#f2c443"], [76, "#f59a35"], [80, "#ea6a2e"], [84, "#d63a3a"], [88, "#b0206a"], [92, "#e07ad8"]], floor: true, alpha: 225, fmt: v => v.toFixed(0) + "°F", ticks: [30, 50, 70, 90] },
+  t2: { name: "Air temperature", unit: "°F", stops: [[-40, "#f1e3ff"], [-20, "#c79bf2"], [0, "#7b5bd6"], [10, "#4c62d8"], [20, "#2f8fe0"], [32, "#45c0e0"], [40, "#3fb88a"], [50, "#7ccc4e"], [60, "#d8d64a"], [70, "#f2b23a"], [80, "#ec7a2e"], [90, "#d9412b"], [100, "#a8203a"], [110, "#6e1030"]], floor: true, alpha: 200, fmt: v => v.toFixed(0) + "°F", ticks: [-40, 0, 32, 70, 110] },
+  prate: { name: "Rain & snow", unit: "in/hr", stops: [[0.1, "#8fd18a"], [0.5, "#3fae4a"], [1, "#1f8a3a"], [2, "#e6d43a"], [4, "#f29a2e"], [8, "#e2412c"], [16, "#b81e6a"], [32, "#e48ae0"]], alpha: 220, fmt: v => (v / 25.4).toFixed(2) + " in/hr", ticks: [0.1, 1, 4, 16], tick: v => (v / 25.4).toFixed(v < 1 ? 3 : 2).replace(/^0/, "") },
+  tcc: { name: "Clouds", unit: "%", stops: [[10, "#dfe6ee"], [100, "#ffffff"]], cloud: true, fmt: v => v.toFixed(0) + "% cover", ticks: [10, 50, 100] },
+  w250: { name: "Jet stream speed", unit: "mph", wind: true, stops: [[60, "#3c5f8f"], [80, "#4fb0c8"], [100, "#6fd08a"], [120, "#e6d84a"], [140, "#f29a2e"], [160, "#e2412c"], [180, "#c21f6a"], [200, "#f0b0f0"]], alpha: 210, fmt: v => v.toFixed(0) + " mph", ticks: [60, 100, 140, 200] },
+  none: { name: "None", unit: "" },
+};
+const SWATCH = { sst: "linear-gradient(90deg,#2c3fbf,#2bbf9c,#f2c443,#d63a3a)", t2: "linear-gradient(90deg,#7b5bd6,#45c0e0,#d8d64a,#d9412b)", prate: "linear-gradient(90deg,#8fd18a,#1f8a3a,#f29a2e,#b81e6a)", tcc: "linear-gradient(90deg,#3b4a5c,#ffffff)", w250: "linear-gradient(90deg,#4fb0c8,#e6d84a,#e2412c,#f0b0f0)", none: "transparent" };
+const WIND_COLORS = { w10: [[0, "#a8c8ff"], [4.5, "#7fe0ff"], [9, "#9ff07a"], [15.5, "#fff06a"], [20, "#ffb347"], [24.5, "#ff6a5a"], [33.5, "#ff5cf0"]],
+  w250: [[0, "#8fa9cc"], [20, "#7fe0ff"], [35, "#9ff07a"], [50, "#fff06a"], [60, "#ffb347"], [75, "#ff6a5a"], [90, "#ff5cf0"]] };
+
+const S = { layer: "sst", wind: true, windLevel: "w10", iso: true, ice: true, frame: 0, playing: false, opacity: .85, t: d3.zoomIdentity };
+let M = null, world = null, paths = {}, cw = 0, ch = 0, dpr = 1;
+const cache = new Map();          // src -> Promise<Int16Array> (then the array itself)
+const rasters = new Map();        // layer:frame -> canvas
+const isoCache = new Map();       // frame -> { path, marks }
+
+const j = u => fetch(u + "?v=" + (M ? M.built : Date.now()), { cache: "no-store" }).then(r => { if (!r.ok) throw new Error(u + " " + r.status); return r.json(); });
+const unpack = t => new Response(new Blob([Uint8Array.from(atob(t.trim()), c => c.charCodeAt(0))]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer().then(b => new Int16Array(b));
+function grid(src) {
+  if (!src) return null;
+  const c = cache.get(src);
+  if (c instanceof Int16Array) return c;
+  if (!c) cache.set(src, fetch(`${src}?v=${M.built}`).then(r => r.text()).then(unpack).then(a => { cache.set(src, a); draw(); return a; }).catch(() => cache.delete(src)));
+  return null;
+}
+const frame = () => M.frames[S.frame];
+const srcFor = name => name === "sst" || name === "ice" ? M.static?.[name] : frame().files[name];
+const fmtLocal = iso => new Date(iso.replace(/Z$/, ":00Z")).toLocaleString([], { weekday: "short", hour: "numeric", timeZoneName: "short" });
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+
+// ---------- colored rasters (built in the browser from the value grids)
+function colorFor(L, v) {
+  const st = L.stops;
+  if (v < st[0][0]) return L.floor ? hex(st[0][1]) : null;
+  for (let i = st.length - 1; i >= 0; i--) if (v >= st[i][0]) {
+    if (i === st.length - 1) return hex(st[i][1]);
+    const [v0, c0] = st[i], [v1, c1] = st[i + 1], a = (v - v0) / (v1 - v0), A = hex(c0), B = hex(c1);
+    return [0, 1, 2].map(k => Math.round(A[k] + (B[k] - A[k]) * a));
+  }
+  return null;
+}
+function raster(name) {
+  const key = name + ":" + (LAYERS[name]?.static || name === "ice" ? "s" : S.frame);
+  if (rasters.has(key)) return rasters.get(key);
+  const g = grid(srcFor(name === "w250" ? "w250" : name));
+  if (!g) return null;
+  const { nx, ny } = M.grid, n = nx * ny, c = document.createElement("canvas");
+  c.width = nx; c.height = ny;
+  const cx = c.getContext("2d"), img = cx.createImageData(nx, ny), d = img.data;
+  const L = LAYERS[name], sc = name === "w250" ? M.scale.wind : M.scale[name];
+  for (let i = 0; i < n; i++) {
+    let v;
+    if (name === "w250") v = Math.hypot(g[i], g[i + n]) / sc * 2.237;
+    else { if (g[i] === -32768) continue; v = g[i] / sc; }
+    if (name === "ice") { if (v >= 15) { d[i * 4] = 234; d[i * 4 + 1] = 244; d[i * 4 + 2] = 255; d[i * 4 + 3] = Math.min(235, 90 + v * 1.4); } continue; }
+    if (L.cloud) { if (v >= 10) { d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = 236; d[i * 4 + 3] = Math.round(v * 1.9); } continue; }
+    const col = colorFor(L, v); if (!col) continue;
+    d[i * 4] = col[0]; d[i * 4 + 1] = col[1]; d[i * 4 + 2] = col[2]; d[i * 4 + 3] = L.alpha;
+  }
+  cx.putImageData(img, 0, 0);
+  rasters.set(key, c);
+  return c;
+}
+function drawRaster(c, alpha) {
+  // Grid points are cell centers from 180W/90N; each spans one degree.
+  const cwB = BW / 360, chB = BH / 180;
+  ctx.globalAlpha = alpha; ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(c, -cwB / 2, -chB / 2, 360 * cwB, 181 * chB);
+  ctx.globalAlpha = 1;
+}
+
+// ---------- isobars and pressure centers
+function isobars() {
+  if (isoCache.has(S.frame)) return isoCache.get(S.frame);
+  const g = grid(srcFor("prmsl")); if (!g) return null;
+  const { nx, ny } = M.grid, sc = M.scale.prmsl, vals = Float64Array.from(g, v => v / sc);
+  const sx = BW / 360, sy = BH / 180, path = new Path2D(), major = new Path2D();
+  const thresholds = d3.range(940, 1068, 4);
+  for (const c of d3.contours().size([nx, ny]).thresholds(thresholds)(vals)) {
+    const p = c.value % 20 === 0 ? major : path;
+    for (const poly of c.coordinates) for (const ring of poly) {
+      let pen = false;
+      for (const [x, y] of ring) {
+        // Skip the segments d3 closes along the grid's edge.
+        const edge = x <= 0.01 || y <= 0.01 || x >= nx - 0.01 || y >= ny - 0.01;
+        const X = (x - 0.5) * sx, Y = (y - 0.5) * sy;
+        if (edge) { pen = false; continue; }
+        pen ? p.lineTo(X, Y) : p.moveTo(X, Y); pen = true;
+      }
+    }
+  }
+  // Highs and lows: the extreme of a 15-degree neighborhood that stands out from its surroundings.
+  const marks = [], R = 7;
+  for (let y = R; y < ny - R; y += 2) for (let x = 0; x < nx; x += 2) {
+    const v = vals[y * nx + x]; let mx = -1e9, mn = 1e9, sum = 0, cnt = 0;
+    for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
+      const w = vals[(y + dy) * nx + ((x + dx + nx) % nx)]; if (w > mx) mx = w; if (w < mn) mn = w; sum += w; cnt++;
+    }
+    const mean = sum / cnt;
+    if (v >= mx && v - mean > 3) marks.push({ x, y, v, hi: true });
+    else if (v <= mn && mean - v > 3) marks.push({ x, y, v, hi: false });
+  }
+  // One label per system: drop weaker marks within 12 degrees of a stronger one of the same kind, and the poles.
+  const kept = [];
+  for (const m of marks.filter(m => m.y > 8 && m.y < ny - 9).sort((a, b) => a.hi === b.hi ? (a.hi ? b.v - a.v : a.v - b.v) : 0)) {
+    if (!kept.some(o => o.hi === m.hi && Math.hypot(Math.min(Math.abs(o.x - m.x), nx - Math.abs(o.x - m.x)), o.y - m.y) < 12)) kept.push(m);
+  }
+  const r = { path, major, marks: kept };
+  isoCache.set(S.frame, r);
+  return r;
+}
+function drawIsobars(k, sxF, syF) {
+  const iso = isobars(); if (!iso) return;
+  ctx.strokeStyle = "rgba(226,236,246,.55)"; ctx.lineWidth = 1 / k; ctx.stroke(iso.path);
+  ctx.strokeStyle = "rgba(226,236,246,.8)"; ctx.lineWidth = 1.6 / k; ctx.stroke(iso.major);
+  return iso.marks;
+}
+
+// ---------- wind particles (screen space, field from the u/v grid)
+const W = { parts: [], trail: null, tctx: null, lastT: null, key: null };
+function windAt(g, lon, lat) {
+  const { nx, ny } = M.grid, n = nx * ny, sc = M.scale.wind;
+  let fx = lon + 180, fy = 90 - lat;
+  if (fy < 0 || fy >= ny - 1) return null;
+  fx = ((fx % nx) + nx) % nx;
+  const x = fx | 0, y = fy | 0, ax = fx - x, ay = fy - y, x1 = (x + 1) % nx;
+  const b = o => ((g[o + y * nx + x] * (1 - ax) + g[o + y * nx + x1] * ax) * (1 - ay) + (g[o + (y + 1) * nx + x] * (1 - ax) + g[o + (y + 1) * nx + x1] * ax) * ay) / sc;
+  return [b(0), b(n)];
+}
+function spawn(p) { p.x = Math.random() * cw; p.y = Math.random() * ch; p.age = 0; p.max = 60 + Math.random() * 90; return p; }
+function drawWind() {
+  const g = grid(srcFor(S.windLevel)); if (!g) return;
+  const w = cw * dpr, h = ch * dpr;
+  if (!W.trail || W.trail.width !== w || W.trail.height !== h) { W.trail = Object.assign(document.createElement("canvas"), { width: w, height: h }); W.tctx = W.trail.getContext("2d"); W.lastT = null; }
+  const t = S.t, tc = W.tctx, target = Math.round(Math.min(5000, Math.max(900, cw * ch / (reduceMotion ? 900 : 260))));
+  const key = `${t.k},${t.x},${t.y},${S.windLevel},${S.frame}`;
+  if (W.key !== key || W.parts.length !== target) {
+    tc.setTransform(1, 0, 0, 1, 0, 0); tc.clearRect(0, 0, w, h);
+    W.parts = Array.from({ length: target }, () => { const p = spawn({}); p.age = Math.random() * p.max; return p; });
+    W.key = key;
+  }
+  tc.setTransform(1, 0, 0, 1, 0, 0);
+  tc.globalCompositeOperation = "destination-in"; tc.fillStyle = "rgba(0,0,0,.955)"; tc.fillRect(0, 0, w, h);
+  tc.globalCompositeOperation = "source-over";
+  tc.setTransform(dpr, 0, 0, dpr, 0, 0); tc.lineWidth = 1.5; tc.lineCap = "round";
+  const cols = WIND_COLORS[S.windLevel], paths = cols.map(() => new Path2D());
+  const F = (S.windLevel === "w250" ? .035 : .12) * (reduceMotion ? .35 : 1) * Math.min(2.5, Math.max(1, Math.sqrt(t.k / homeT().k)));
+  for (const p of W.parts) {
+    if (++p.age > p.max) { spawn(p); continue; }
+    const lon = lonOf((p.x - t.x) / t.k), lat = latOf((p.y - t.y) / t.k);
+    const wv = windAt(g, lon, lat); if (!wv) { spawn(p); continue; }
+    const spd = Math.hypot(wv[0], wv[1]);
+    const nx = p.x + wv[0] * F, ny = p.y - wv[1] * F;
+    let b = 0; while (b < cols.length - 1 && spd >= cols[b + 1][0]) b++;
+    paths[b].moveTo(p.x, p.y); paths[b].lineTo(nx, ny);
+    p.x = nx; p.y = ny;
+    if (p.x < 0 || p.y < 0 || p.x > cw || p.y > ch) spawn(p);
+  }
+  paths.forEach((pa, i) => { tc.strokeStyle = cols[i][1]; tc.stroke(pa); });
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(W.trail, 0, 0); ctx.restore();
+}
+
+// ---------- draw
+function draw() {
+  if (!M || !world) return;
+  const t = S.t, k = t.k;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = "#0b1a2c"; ctx.fillRect(0, 0, cw, ch);
+  ctx.setTransform(dpr * k, 0, 0, dpr * k, dpr * t.x, dpr * t.y);
+  ctx.fillStyle = "#0e2036"; ctx.fillRect(0, 0, BW, BH);
+  ctx.fillStyle = "#1f2c38"; ctx.fill(paths.land);
+  ctx.fillStyle = "#0e2036"; ctx.fill(paths.lakes);
+
+  if (S.layer !== "none") { const r = raster(S.layer); if (r) drawRaster(r, S.opacity); }
+  if (S.ice && S.layer !== "sst") { const r = raster("ice"); if (r) drawRaster(r, .9); }
+  if (S.ice && S.layer === "sst") { const r = raster("ice"); if (r) drawRaster(r, .95); }
+
+  ctx.strokeStyle = "rgba(200,215,230,.7)"; ctx.lineWidth = .9 / k; ctx.stroke(paths.land);
+  ctx.strokeStyle = "rgba(200,215,230,.28)"; ctx.lineWidth = .7 / k; ctx.stroke(paths.borders);
+  let marks = null;
+  if (S.iso) marks = drawIsobars(k);
+
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (S.wind) drawWind();
+  if (marks) {
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    for (const m of marks) {
+      const x = t.x + ((m.x) * BW / 360) * k, y = t.y + ((m.y) * BH / 180) * k;
+      if (x < -20 || y < -20 || x > cw + 20 || y > ch + 20) continue;
+      ctx.font = "700 20px 'Saira Condensed', sans-serif"; ctx.lineWidth = 3.5; ctx.strokeStyle = "rgba(8,14,22,.85)";
+      ctx.strokeText(m.hi ? "H" : "L", x, y); ctx.fillStyle = m.hi ? "#5aaaff" : "#ff6060"; ctx.fillText(m.hi ? "H" : "L", x, y);
+      ctx.font = "500 11px 'IBM Plex Mono', monospace"; ctx.strokeText(Math.round(m.v), x, y + 15); ctx.fillStyle = "#e6edf3"; ctx.fillText(Math.round(m.v), x, y + 15);
+    }
+  }
+}
+let rafOn = false;
+function loop() { rafOn = false; draw(); if (S.wind || S.playing) kick(); }
+function kick() { if (!rafOn) { rafOn = true; requestAnimationFrame(loop); } }
+
+// ---------- pan / zoom
+const zoom = d3.zoom().on("zoom", e => { S.t = e.transform; draw(); $("probe").hidden = true; });
+d3.select(canvas).call(zoom).on("dblclick.zoom", null);
+const minK = () => Math.max(cw / BW, ch / BH);
+function homeT() {
+  const k = Math.max(minK(), cw / BW);
+  // Center on the Americas and the Atlantic when the world is wider than the screen.
+  const cx = cw / 2 - bx(-60) * k, cy = ch / 2 - by(22) * k;
+  return clampT(d3.zoomIdentity.translate(cx, cy).scale(k));
+}
+function clampT(t) {
+  const k = Math.max(t.k, minK());
+  return d3.zoomIdentity.translate(Math.min(0, Math.max(cw - BW * k, t.x)), Math.min(0, Math.max(ch - BH * k, t.y))).scale(k);
+}
+function resize() {
+  const r = wrap.getBoundingClientRect(); cw = r.width; ch = r.height; dpr = Math.min(2, devicePixelRatio || 1);
+  canvas.width = Math.round(cw * dpr); canvas.height = Math.round(ch * dpr);
+  zoom.scaleExtent([minK(), 24]).translateExtent([[0, 0], [BW, BH]]);
+  d3.select(canvas).call(zoom.transform, S.t.k === 1 && S.t.x === 0 ? homeT() : clampT(S.t));
+  draw();
+}
+$("zin").onclick = () => d3.select(canvas).transition().duration(reduceMotion ? 0 : 300).call(zoom.scaleBy, 1.6);
+$("zout").onclick = () => d3.select(canvas).transition().duration(reduceMotion ? 0 : 300).call(zoom.scaleBy, 1 / 1.6);
+$("zhome").onclick = () => d3.select(canvas).transition().duration(reduceMotion ? 0 : 500).call(zoom.transform, homeT());
+
+// ---------- hover readout
+canvas.addEventListener("pointermove", e => {
+  if (e.buttons || !M) return;
+  const r = canvas.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+  const lon = lonOf((mx - S.t.x) / S.t.k), lat = latOf((my - S.t.y) / S.t.k);
+  if (lat > 90 || lat < -90) return;
+  const val = name => {
+    const g = grid(srcFor(name)); if (!g) return null;
+    const ix = ((Math.round(lon + 180) % 360) + 360) % 360, iy = Math.round(90 - lat), v = g[iy * 360 + ix];
+    return v === -32768 ? null : v / M.scale[name];
+  };
+  let rows = `<div class="r"><span>Lat/Lon</span><span>${lat.toFixed(1)}, ${lon.toFixed(1)}</span></div>`;
+  const add = (label, v) => { if (v != null) rows += `<div class="r"><span>${label}</span><span>${v}</span></div>`; };
+  const sst = val("sst"); if (sst != null) add("Ocean temp", sst.toFixed(0) + "°F");
+  const t2 = val("t2"); if (t2 != null) add("Air temp", t2.toFixed(0) + "°F");
+  const pr = val("prate"); if (pr != null && pr >= 0.05) add("Precip rate", (pr / 25.4).toFixed(2) + " in/hr");
+  const cl = val("tcc"); if (cl != null) add("Cloud cover", cl.toFixed(0) + "%");
+  const p = val("prmsl"); if (p != null) add("Pressure", p.toFixed(0) + " mb");
+  for (const [lv, label] of [["w10", "Wind"], ["w250", "Jet stream"]]) {
+    const g = grid(srcFor(lv)); const w = g && windAt(g, lon, lat);
+    if (w) { const spd = Math.hypot(w[0], w[1]) * 2.237, dir = (Math.atan2(-w[0], -w[1]) * 180 / Math.PI + 360) % 360; add(label, `${["N", "NE", "E", "SE", "S", "SW", "W", "NW"][Math.round(dir / 45) % 8]} ${Math.round(spd)} mph`); }
+  }
+  const pe = $("probe");
+  pe.innerHTML = `<div class="h">${fmtLocal(frame().valid)}</div>${rows}`; pe.hidden = false;
+  pe.style.left = Math.min(mx + 16, cw - pe.offsetWidth - 8) + "px"; pe.style.top = Math.min(my + 16, ch - pe.offsetHeight - 8) + "px";
+});
+canvas.addEventListener("pointerleave", () => { $("probe").hidden = true; });
+
+// ---------- controls
+function buildLayers() {
+  $("layers").innerHTML = Object.entries(LAYERS).map(([k, L]) => `<button data-k="${k}" aria-pressed="${k === S.layer}"><span class="sw" style="background:${SWATCH[k]}"></span>${esc(L.name)}<span class="u">${esc(L.unit)}</span></button>`).join("");
+  $("layers").onclick = e => { const b = e.target.closest("button"); if (!b) return; S.layer = b.dataset.k; [...$("layers").children].forEach(x => x.setAttribute("aria-pressed", x === b)); legend(); syncTag(); draw(); };
+}
+function legend() {
+  const L = LAYERS[S.layer];
+  $("legunit").textContent = L.unit;
+  if (!L.stops) { $("legend").innerHTML = `<p class="note">No color layer. Coastlines, winds and pressure only.</p>`; return; }
+  const lo = L.stops[0][0], hi = L.stops.at(-1)[0], pos = v => L.cloud ? (v - lo) / (hi - lo) : L.stops.findIndex(s => s[0] >= v) / (L.stops.length - 1);
+  const bar = L.cloud ? "linear-gradient(90deg,#3b4a5c,#dfe6ee,#ffffff)" : `linear-gradient(90deg,${L.stops.map(([, c], i) => `${c} ${(i / (L.stops.length - 1) * 100).toFixed(0)}%`).join(",")})`;
+  const ticks = L.ticks.map(v => `<span style="position:absolute;left:${(pos(v) * 100).toFixed(1)}%;transform:translateX(-${pos(v) * 100}%)">${L.tick ? L.tick(v) : v}</span>`).join("");
+  $("legend").innerHTML = `<div class="cbar" style="background:${bar}"></div><div class="cticks" style="position:relative;height:16px">${ticks}</div>
+    <div class="lcap">${{ sst: "Latest analysis · land masked", t2: "About 6 ft above ground", prate: "Liquid-equivalent rate; snow shows as precipitation", tcc: "Total cloud cover, all levels", w250: "Wind speed at the 250 mb level" }[S.layer] || ""}</div>`;
+}
+function syncTag() {
+  const f = frame(), L = LAYERS[S.layer];
+  $("vk").textContent = (L.static ? L.name + " · latest" : S.layer === "none" ? "World" : L.name) + (S.wind ? ` + ${S.windLevel === "w250" ? "jet stream" : "surface"} winds` : "");
+  $("vv").textContent = fmtLocal(f.valid);
+  const ahead = Math.round((Date.parse(f.valid.replace(/Z$/, ":00Z")) - Date.now()) / 3600000);
+  $("vs").textContent = `${Math.abs(ahead) <= 3 ? "Now" : ahead > 0 ? `+${ahead} h` : `${ahead} h`} · GFS ${M.cycle.slice(11, 13)}Z run F${String(f.fh).padStart(3, "0")}`;
+  const sl = $("slider"); sl.max = M.frames.length - 1; sl.value = S.frame;
+  const bars = $("bars");
+  if (bars.childElementCount !== M.frames.length) bars.innerHTML = M.frames.map(() => "<i></i>").join("");
+  [...bars.children].forEach((b, i) => { b.className = i === S.frame ? "on" : i < S.frame ? "past" : ""; });
+  $("lab0").textContent = fmtLocal(M.frames[0].valid); $("lab1").textContent = fmtLocal(M.frames.at(-1).valid);
+}
+function setFrame(i) { S.frame = Math.max(0, Math.min(M.frames.length - 1, i)); syncTag(); draw(); }
+let playTimer = null;
+function play(on) {
+  S.playing = on; clearInterval(playTimer);
+  $("playicon").innerHTML = on ? '<path d="M3 2h4v12H3zM9 2h4v12H9z"/>' : '<path d="M4 2l10 6-10 6z"/>';
+  $("play").setAttribute("aria-label", on ? "Pause" : "Play");
+  if (on) {
+    M.frames.forEach((_, i) => { const f = M.frames[i]; [S.layer, S.windLevel, "prmsl"].forEach(n => grid(f.files[n])); });
+    playTimer = setInterval(() => setFrame((S.frame + 1) % M.frames.length), reduceMotion ? 2000 : 1100);
+    kick();
+  }
+}
+$("play").onclick = () => play(!S.playing);
+$("prev").onclick = () => { play(false); setFrame(S.frame - 1); };
+$("next").onclick = () => { play(false); setFrame(S.frame + 1); };
+$("slider").oninput = e => { play(false); setFrame(+e.target.value); };
+$("op").oninput = e => { S.opacity = e.target.value / 100; $("opv").textContent = e.target.value + "%"; draw(); };
+$("t-wind").onchange = e => { S.wind = e.target.checked; syncTag(); kick(); draw(); };
+$("windsel").onchange = e => { S.windLevel = e.target.value; if (!S.wind) { S.wind = true; $("t-wind").checked = true; } syncTag(); kick(); };
+$("t-iso").onchange = e => { S.iso = e.target.checked; draw(); };
+$("t-ice").onchange = e => { S.ice = e.target.checked; draw(); };
+
+function stamps() {
+  const tick = () => {
+    const mins = Math.max(0, Math.round((Date.now() - Date.parse(M.built)) / 60000));
+    $("stamps").innerHTML = `<span class="live${mins > 45 ? " stale" : ""}"><i></i>${mins < 1 ? "Updated just now" : mins < 90 ? `Updated ${mins} min ago` : `Updated ${Math.round(mins / 60)} h ago`}</span><span class="stamp"><em>GFS</em>${M.cycle.slice(11, 13)}Z run</span>`;
+  };
+  tick(); setInterval(tick, 30000);
+}
+
+async function boot() {
+  [M, world] = await Promise.all([j("data/global/meta.json"), j("data/base/world.json")]);
+  const proj = d3.geoEquirectangular().scale(BW / (2 * Math.PI)).translate([BW / 2, BH / 2]).precision(0.1);
+  const gp = d3.geoPath(proj);
+  paths.land = new Path2D(gp(world.land)); paths.borders = new Path2D(gp(world.borders)); paths.lakes = new Path2D(gp(world.lakes));
+  // Start at the time nearest to now.
+  const now = Date.now();
+  S.frame = M.frames.reduce((b, f, i) => Math.abs(Date.parse(f.valid.replace(/Z$/, ":00Z")) - now) < Math.abs(Date.parse(M.frames[b].valid.replace(/Z$/, ":00Z")) - now) ? i : b, 0);
+  buildLayers(); legend(); syncTag(); stamps();
+  $("loading").hidden = true;
+  resize(); kick();
+}
+new ResizeObserver(() => resize()).observe(wrap);
+boot().catch(err => { $("loading").textContent = "Could not load world data: " + err.message; console.error(err); });
+})();
+</script>
+</body>
+</html>

@@ -22,6 +22,7 @@ import numpy as np
 from PIL import Image, ImageFilter
 
 import forecast
+import global_build
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "data")
@@ -501,6 +502,11 @@ def build_gfs(now):
     print("GFS cycle", cycle)
     out = {"wind": build_wind(now, cycle)}
     try:
+        g = global_build.build(now, cycle, get, save, OUT)
+        print("global frames", len(g["frames"]) if g else 0)
+    except Exception as e:
+        print("FAILED global", repr(e))
+    try:
         out["sst"] = build_sst(cycle)
     except Exception as e:
         print("FAILED sst", repr(e))
@@ -705,7 +711,7 @@ def build_hrrr(now):
 def main():
     os.makedirs(OUT, exist_ok=True)
     # Start clean so nothing from an earlier run (past radar scans, old model hours) is published.
-    for sub in ("radar", "hrrr", "sat", "wpc", "wind"):
+    for sub in ("radar", "hrrr", "sat", "wpc", "wind", "global"):
         d = os.path.join(OUT, sub)
         if os.path.isdir(d):
             for fn in os.listdir(d):
