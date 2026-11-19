@@ -113,7 +113,7 @@ canvas#map { position: absolute; inset: 0; width: 100%; height: 100%; display: b
 @media (prefers-reduced-motion: reduce) { .live i { animation: none; } }
 /* ---- Clean light theme (matches the United States tab). */
 body { font-variant-numeric: tabular-nums; }
-header.top { background: rgba(255,255,255,.92); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
+header.top { padding-top: max(10px, env(safe-area-inset-top, 0px)); background: rgba(255,255,255,.92); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
 .brand h1 { font: 700 22px/1 var(--f-display); letter-spacing: -.01em; text-transform: none; }
 .tabs { background: #eef2f7; border: 0; border-radius: 10px; }
 .tabs a { font: 600 13px var(--f-body); letter-spacing: 0; text-transform: none; border-radius: 8px; padding: 6px 14px; }
@@ -244,7 +244,14 @@ const rasters = new Map();        // layer:frame -> canvas
 const isoCache = new Map();       // frame -> { path, marks }
 
 const j = u => fetch(u + "?v=" + (M ? M.built : Date.now()), { cache: "no-store" }).then(r => { if (!r.ok) throw new Error(u + " " + r.status); return r.json(); });
-const unpack = t => new Response(new Blob([Uint8Array.from(atob(t.trim()), c => c.charCodeAt(0))]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer().then(b => new Int16Array(b));
+// Grids ship as gzip + base64 text. Older iPhones (before iOS 16.4) lack DecompressionStream, so fall back to pako.
+let pakoLoad = null;
+const loadPako = () => pakoLoad || (pakoLoad = new Promise((res, rej) => { const sc = document.createElement("script"); sc.src = "https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"; sc.onload = () => res(window.pako); sc.onerror = rej; document.head.appendChild(sc); }));
+async function gunzipBytes(bytes) {
+  if (typeof DecompressionStream === "function") return new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
+  return (await loadPako()).ungzip(bytes).buffer;
+}
+const unpack = t => gunzipBytes(Uint8Array.from(atob(t.trim()), c => c.charCodeAt(0))).then(b => new Int16Array(b));
 function grid(src) {
   if (!src) return null;
   const c = cache.get(src);
@@ -360,7 +367,7 @@ function windAt(g, lon, lat) {
 function spawn(p) { p.x = Math.random() * cw; p.y = Math.random() * ch; p.age = 0; p.max = 60 + Math.random() * 90; return p; }
 function drawWind() {
   const g = grid(srcFor(S.windLevel)); if (!g) return;
-  const w = cw * dpr, h = ch * dpr;
+  const w = Math.round(cw * dpr), h = Math.round(ch * dpr);  // canvas sizes are whole pixels; cw can be fractional on phones
   if (!W.trail || W.trail.width !== w || W.trail.height !== h) { W.trail = Object.assign(document.createElement("canvas"), { width: w, height: h }); W.tctx = W.trail.getContext("2d"); W.lastT = null; }
   const t = S.t, tc = W.tctx, target = Math.round(Math.min(5000, Math.max(900, cw * ch / (reduceMotion ? 900 : 260))));
   const key = `${t.k},${t.x},${t.y},${S.windLevel},${S.frame}`;
@@ -369,14 +376,17 @@ function drawWind() {
     W.parts = Array.from({ length: target }, () => { const p = spawn({}); p.age = Math.random() * p.max; return p; });
     W.key = key;
   }
+  // Time-based step: phones often draw at 30 fps or less, so scale by elapsed time (1 = one 60 fps frame).
+  const nowT = performance.now(), dt = Math.min(4, Math.max(.25, (nowT - (W.lastFrame || nowT - 16.7)) / 16.7)); W.lastFrame = nowT;
+  const small = cw < 600;
   tc.setTransform(1, 0, 0, 1, 0, 0);
-  tc.globalCompositeOperation = "destination-in"; tc.fillStyle = "rgba(0,0,0,.955)"; tc.fillRect(0, 0, w, h);
+  tc.globalCompositeOperation = "destination-in"; tc.fillStyle = `rgba(0,0,0,${Math.pow(.965, dt).toFixed(3)})`; tc.fillRect(0, 0, w, h);
   tc.globalCompositeOperation = "source-over";
-  tc.setTransform(dpr, 0, 0, dpr, 0, 0); tc.lineWidth = 1.5; tc.lineCap = "round";
+  tc.setTransform(dpr, 0, 0, dpr, 0, 0); tc.lineWidth = small ? 2.1 : 1.6; tc.lineCap = "round";
   const cols = WIND_COLORS[S.windLevel], paths = cols.map(() => new Path2D());
-  const F = (S.windLevel === "w250" ? .035 : .12) * (reduceMotion ? .35 : 1) * Math.min(2.5, Math.max(1, Math.sqrt(t.k / homeT().k)));
+  const F = (S.windLevel === "w250" ? .045 : .16) * (reduceMotion ? .35 : 1) * Math.min(2.5, Math.max(1, Math.sqrt(t.k / homeT().k))) * dt;
   for (const p of W.parts) {
-    if (++p.age > p.max) { spawn(p); continue; }
+    if ((p.age += dt) > p.max) { spawn(p); continue; }
     const lon = lonOf((p.x - t.x) / t.k), lat = latOf((p.y - t.y) / t.k);
     const wv = windAt(g, lon, lat); if (!wv) { spawn(p); continue; }
     const spd = Math.hypot(wv[0], wv[1]);

@@ -260,7 +260,7 @@ canvas#map { position: absolute; inset: 0; width: 100%; height: 100%; display: b
 @media (prefers-reduced-motion: reduce) { .ticks .bars i { transition: none; } }
 /* ---- Clean light theme: white rounded cards on a soft blue-gray page, system type, iOS-style controls. */
 body { background: var(--stage); font-variant-numeric: tabular-nums; }
-header.top { background: rgba(255,255,255,.92); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
+header.top { padding-top: max(10px, env(safe-area-inset-top, 0px)); background: rgba(255,255,255,.92); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
 .brand h1 { font: 700 22px/1 var(--f-display); letter-spacing: -.01em; text-transform: none; }
 .brand span { font: 500 12px var(--f-body); letter-spacing: 0; }
 .tabs { background: #eef2f7; border: 0; border-radius: 10px; }
@@ -1204,7 +1204,14 @@ const W = { grid: null, hour: null, parts: [], trail: null, tctx: null, lastT: n
 const SST = { grid: null, img: undefined };
 const WIND_COLORS = [[0, "#6b86a3"], [4.5, "#2f80c8"], [9, "#1e9a62"], [15.5, "#c9a300"], [20, "#e07a12"], [24.5, "#d6332e"], [33.5, "#b0179b"]];
 const compass = d => ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"][Math.round(d / 22.5) % 16];
-const gunzipB64 = t => new Response(new Blob([Uint8Array.from(atob(t.trim()), c => c.charCodeAt(0))]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
+// Grids ship as gzip + base64 text. Older iPhones (before iOS 16.4) lack DecompressionStream, so fall back to pako.
+let pakoLoad = null;
+const loadPako = () => pakoLoad || (pakoLoad = new Promise((res, rej) => { const sc = document.createElement("script"); sc.src = "https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"; sc.onload = () => res(window.pako); sc.onerror = rej; document.head.appendChild(sc); }));
+async function gunzipBytes(bytes) {
+  if (typeof DecompressionStream === "function") return new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
+  return (await loadPako()).ungzip(bytes).buffer;
+}
+const gunzipB64 = t => gunzipBytes(Uint8Array.from(atob(t.trim()), c => c.charCodeAt(0)));
 const tIso = iso => Date.parse(iso.replace(/Z$/, ":00Z"));
 function buildWindUI() {
   const m = D.meta;
@@ -1274,7 +1281,7 @@ function windSpawn(p) {
 function drawWind() {
   if (!W.grid) { ensureWind(); return; }
   if (windHour() !== W.hour) ensureWind();
-  const w = cw * dpr, h = ch * dpr;
+  const w = Math.round(cw * dpr), h = Math.round(ch * dpr);  // canvas sizes are whole pixels; cw can be fractional on phones
   if (!W.trail || W.trail.width !== w || W.trail.height !== h) {
     W.trail = Object.assign(document.createElement("canvas"), { width: w, height: h }); W.tctx = W.trail.getContext("2d"); W.lastT = null;
   }
@@ -1286,13 +1293,16 @@ function drawWind() {
     W.parts = Array.from({ length: target }, () => { const p = windSpawn({}); p.age = Math.random() * p.max; return p; });
     W.lastT = { k: t.k, x: t.x, y: t.y };
   }
+  // Time-based step: phones often draw at 30 fps or less, so scale by elapsed time (1 = one 60 fps frame).
+  const nowT = performance.now(), dt = Math.min(4, Math.max(.25, (nowT - (W.lastFrame || nowT - 16.7)) / 16.7)); W.lastFrame = nowT;
+  const small = cw < 600;
   tc.setTransform(1, 0, 0, 1, 0, 0);
-  tc.globalCompositeOperation = "destination-in"; tc.fillStyle = "rgba(0,0,0,.955)"; tc.fillRect(0, 0, w, h);
+  tc.globalCompositeOperation = "destination-in"; tc.fillStyle = `rgba(0,0,0,${Math.pow(.965, dt).toFixed(3)})`; tc.fillRect(0, 0, w, h);
   tc.globalCompositeOperation = "source-over";
-  tc.setTransform(dpr, 0, 0, dpr, 0, 0); tc.lineWidth = 1.6; tc.lineCap = "round";
-  const buckets = WIND_COLORS.map(() => new Path2D()), F = reduceMotion ? .04 : .12;
+  tc.setTransform(dpr, 0, 0, dpr, 0, 0); tc.lineWidth = small ? 2.2 : 1.7; tc.lineCap = "round";
+  const buckets = WIND_COLORS.map(() => new Path2D()), F = (reduceMotion ? .05 : .16) * dt;
   for (const p of W.parts) {
-    if (++p.age > p.max) { windSpawn(p); continue; }
+    if ((p.age += dt) > p.max) { windSpawn(p); continue; }
     const [lon, lat] = proj.invert([(p.x - t.x) / t.k, (p.y - t.y) / t.k]);
     const wv = windAt(lon, lat);
     if (!wv) { windSpawn(p); continue; }
@@ -1626,7 +1636,7 @@ async function loadProbe(fh) {
   if (probeCache[fh]) return probeCache[fh];
   // Grids ship as gzip + base64 text; decode back to little-endian Int16.
   probeCache[fh] = fetch(`data/hrrr/probe_h${String(fh - D.meta.hrrr.hours[0].fh).padStart(2, "0")}.txt?v=${D.meta.built}`).then(r => r.text())
-    .then(t => { const bin = Uint8Array.from(atob(t.trim()), c => c.charCodeAt(0)); return new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer(); })
+    .then(t => gunzipBytes(Uint8Array.from(atob(t.trim()), c => c.charCodeAt(0))))
     .then(b => new Int16Array(b)).catch(() => null);
   return probeCache[fh];
 }
