@@ -64,7 +64,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
 
     // Links to other sites (SPC, NWS) open in the default browser.
     func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-        if let url = action.request.url, url.scheme == "https", action.navigationType == .linkActivated {
+        // Pages of this site (United States / Global tabs) stay in the app; other sites open in the browser.
+        if let url = action.request.url, url.scheme == "https", action.navigationType == .linkActivated, url.host != site.host {
             NSWorkspace.shared.open(url)
             decisionHandler(.cancel)
             return
