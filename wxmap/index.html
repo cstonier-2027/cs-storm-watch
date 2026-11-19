@@ -556,7 +556,12 @@ select.sel, .filt, .find input { background: var(--panel-2); border: 1px solid v
 "use strict";
 const R = 6378137, BW = 1400;
 const $ = id => document.getElementById(id);
-const canvas = $("map"), ctx = canvas.getContext("2d"), wrap = $("mapwrap");
+const canvas = $("map"), screenCtx = canvas.getContext("2d"), wrap = $("mapwrap");
+// The still map is drawn into two cached layers (map, then labels); each animation frame only composites them and
+// draws what moves (winds, flashing warning outlines). `ctx` points at whichever layer is being drawn.
+let ctx = screenCtx;
+const layerMap = document.createElement("canvas"), layerLabels = document.createElement("canvas");
+let layersKey = "";
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 // NWS hazard map colors (weather.gov/help-map) for the products that commonly appear.
@@ -838,9 +843,38 @@ function hrrrImg(field, fh) {
 }
 function prefetchField(field) { D.meta.hrrr.hours.forEach(h => hrrrImg(field, h.fh)); }
 
-function draw(now = performance.now()) {
+// anim = true: called from the animation loop; the cached layers are reused unless the view or frame changed.
+function draw(now = performance.now(), anim = false) {
   if (!proj || !paths.rivers) return;  // the terrain image can arrive before the paths are built
   const t = S.t, k = t.k;
+  const key = `${t.k},${t.x},${t.y},${S.frame},${S.prevFrame},${fade},${canvas.width},${canvas.height}`;
+  if (!anim || key !== layersKey) { renderLayers(now); layersKey = key; }
+  // Compose: map, moving overlays, labels.
+  ctx = screenCtx;
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1;
+  ctx.drawImage(layerMap, 0, 0);
+  ctx.setTransform(dpr * k, 0, 0, dpr * k, dpr * t.x, dpr * t.y);
+  if (S.show.alerts) {
+    const pulse = reduceMotion ? 1 : .55 + .45 * Math.sin(now / 260);
+    for (const a of visibleAlerts()) {
+      if (!a.path || !a.poly || !PULSE.has(a.event)) continue;
+      ctx.strokeStyle = a.color; ctx.globalAlpha = pulse; ctx.lineWidth = 2.6 / k; ctx.stroke(a.path);
+    }
+    ctx.globalAlpha = 1;
+    if (S.selected?.path) {
+      ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 3 / k; ctx.setLineDash([8 / k, 5 / k]); ctx.lineDashOffset = reduceMotion ? 0 : -now / 60 / k; ctx.stroke(S.selected.path); ctx.setLineDash([]);
+    }
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (S.show.wind) drawWind();
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(layerLabels, 0, 0);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (S.hover) { ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(S.hover[0], S.hover[1], 5, 0, 7); ctx.stroke(); }
+}
+function sizeLayer(c) { if (c.width !== canvas.width || c.height !== canvas.height) { c.width = canvas.width; c.height = canvas.height; } return c.getContext("2d"); }
+function renderLayers(now) {
+  const t = S.t, k = t.k;
+  ctx = sizeLayer(layerMap);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.fillStyle = "#0b1826"; ctx.fillRect(0, 0, cw, ch);
   ctx.setTransform(dpr * k, 0, 0, dpr * k, dpr * t.x, dpr * t.y);
@@ -916,8 +950,7 @@ function draw(now = performance.now()) {
     D.mds.features?.forEach(m => { ctx.strokeStyle = "#4a9bff"; ctx.setLineDash([6 / k, 4 / k]); ctx.lineWidth = 2 / k; ctx.stroke(m.path); ctx.setLineDash([]); });
   }
 
-  // Alerts: county fills first (lowest priority under), then polygons with a pulse.
-  const pulse = reduceMotion ? 1 : .55 + .45 * Math.sin(now / 260);
+  // Alerts: county fills first (lowest priority under), then polygons (flashing outlines are drawn per frame).
   if (S.show.alerts) {
     const vis = visibleAlerts();
     for (let i = vis.length - 1; i >= 0; i--) {
@@ -929,17 +962,15 @@ function draw(now = performance.now()) {
       const a = vis[i]; if (!a.path || !a.poly) continue;
       ctx.fillStyle = a.color + "30"; ctx.fill(a.path);
       ctx.strokeStyle = "rgba(8,14,22,.9)"; ctx.lineWidth = 4 / k; ctx.stroke(a.path);
-      ctx.strokeStyle = a.color; ctx.globalAlpha = PULSE.has(a.event) ? pulse : 1; ctx.lineWidth = 2.6 / k; ctx.stroke(a.path); ctx.globalAlpha = 1;
-    }
-    if (S.selected?.path) {
-      ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 3 / k; ctx.setLineDash([8 / k, 5 / k]); ctx.lineDashOffset = reduceMotion ? 0 : -now / 60 / k; ctx.stroke(S.selected.path); ctx.setLineDash([]);
+      if (!PULSE.has(a.event)) { ctx.strokeStyle = a.color; ctx.lineWidth = 2.6 / k; ctx.stroke(a.path); }
     }
   }
 
-  // Back to screen space for point symbols so they stay a constant size.
+  // Labels layer, in screen space so symbols stay a constant size.
+  ctx = sizeLayer(layerLabels);
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, layerLabels.width, layerLabels.height);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const sx = x => t.x + x * k, sy = y => t.y + y * k;
-  if (S.show.wind) drawWind();
   if (S.show.hgt || S.show.iso) {
     const boxes = [], minorTags = k / homeT().k > 1.8;
     if (S.show.hgt) { const cs = ctSet(S.hgt); if (cs) contourLabels(cs, t, boxes, minorTags); }
@@ -949,7 +980,7 @@ function draw(now = performance.now()) {
   if (S.show.rpts) drawReports(sx, sy, k);
   if (S.show.cities) drawCities(sx, sy, k); else drawn = [];
   if (S.place) drawPlace(sx, sy);
-  if (S.hover) { ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(S.hover[0], S.hover[1], 5, 0, 7); ctx.stroke(); }
+  ctx = screenCtx;
 }
 
 function rasterFor(i) {
@@ -1052,7 +1083,7 @@ function loop(now) {
     if (now - lastStep > dwell) { step(1, true); lastStep = now; }
   }
   if (fade < 1) fade = Math.min(1, fade + (reduceMotion ? 1 : 0.12));
-  draw(now);
+  draw(now, true);
   if (needsLoop()) kick();
 }
 function kick() { if (!rafOn) { rafOn = true; requestAnimationFrame(loop); } }
@@ -1783,7 +1814,7 @@ async function loadProbe(fh) {
     .then(b => new Int16Array(b)).catch(() => null);
   return probeCache[fh];
 }
-function hideProbe() { $("probe").hidden = true; if (S.hover) { S.hover = null; draw(); } }
+function hideProbe() { $("probe").hidden = true; if (S.hover) { S.hover = null; draw(performance.now(), true); } }
 let probeTick = 0;
 canvas.addEventListener("pointermove", async e => {
   if (e.buttons) return;
@@ -1824,7 +1855,7 @@ canvas.addEventListener("pointermove", async e => {
   p.hidden = false;
   const pw = p.offsetWidth, ph = p.offsetHeight;
   p.style.left = Math.min(mx + 16, cw - pw - 8) + "px"; p.style.top = Math.min(my + 16, ch - ph - 8) + "px";
-  S.hover = [mx, my]; if (!rafOn) draw();
+  S.hover = [mx, my]; if (!rafOn) draw(performance.now(), true);
 });
 canvas.addEventListener("pointerleave", hideProbe);
 function inPath(p, x, y) { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); const r = ctx.isPointInPath(p, x, y); ctx.restore(); return r; }

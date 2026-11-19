@@ -226,7 +226,10 @@ select.sel { background: var(--panel-2); border: 1px solid var(--line); border-r
 (() => {
 "use strict";
 const $ = id => document.getElementById(id);
-const canvas = $("map"), ctx = canvas.getContext("2d"), wrap = $("mapwrap");
+const canvas = $("map"), screenCtx = canvas.getContext("2d"), wrap = $("mapwrap");
+// The still map and its labels are cached in two layers; animation frames only add the moving winds between them.
+let ctx = screenCtx, layersKey = "";
+const layerMap = document.createElement("canvas"), layerLabels = document.createElement("canvas");
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 // Map space: equirectangular world, 2048 x 1024 base pixels.
 const BW = 2048, BH = 1024;
@@ -499,9 +502,20 @@ function drawWind() {
 }
 
 // ---------- draw
-function draw() {
+function draw(anim = false) {
   if (!M || !world) return;
+  const t = S.t, key = `${t.k},${t.x},${t.y},${S.frame},${canvas.width},${canvas.height}`;
+  if (!anim || key !== layersKey) { renderLayers(); layersKey = key; }
+  ctx = screenCtx;
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(layerMap, 0, 0);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (S.wind) drawWind();
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(layerLabels, 0, 0);
+}
+function sizeLayer(c) { if (c.width !== canvas.width || c.height !== canvas.height) { c.width = canvas.width; c.height = canvas.height; } return c.getContext("2d"); }
+function renderLayers() {
   const t = S.t, k = t.k;
+  ctx = sizeLayer(layerMap);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.fillStyle = "#0b1826"; ctx.fillRect(0, 0, cw, ch);
   ctx.setTransform(dpr * k, 0, 0, dpr * k, dpr * t.x, dpr * t.y);
@@ -517,8 +531,9 @@ function draw() {
   ctx.strokeStyle = "rgba(160,180,200,.28)"; ctx.lineWidth = .7 / k; ctx.stroke(paths.borders);
   const marks = S.iso || S.hgt ? drawIsobars(k) : null;
 
+  ctx = sizeLayer(layerLabels);
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, layerLabels.width, layerLabels.height);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  if (S.wind) drawWind();
   if (S.iso || S.hgt) {
     const boxes = [], minorTags = t.k / homeT().k > 1.8;
     if (S.hgt) { const cs = hiresSet(S.hgtLevel); if (cs) contourLabels(cs, t, boxes, minorTags); }
@@ -534,9 +549,10 @@ function draw() {
       ctx.font = "600 11px Inter, -apple-system, sans-serif"; ctx.strokeText(Math.round(m.v), x, y + 15); ctx.fillStyle = "#e8eef5"; ctx.fillText(Math.round(m.v), x, y + 15);
     }
   }
+  ctx = screenCtx;
 }
 let rafOn = false;
-function loop() { rafOn = false; draw(); if (S.wind || S.playing) kick(); }
+function loop() { rafOn = false; draw(true); if (S.wind || S.playing) kick(); }
 function kick() { if (!rafOn) { rafOn = true; requestAnimationFrame(loop); } }
 
 // ---------- pan / zoom
