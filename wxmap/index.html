@@ -111,11 +111,16 @@ canvas#map { position: absolute; inset: 0; width: 100%; height: 100%; display: b
 .mapbtns { position: absolute; right: 12px; top: 12px; display: grid; gap: 8px; z-index: 2; }
 .mapbtns button { width: 36px; height: 36px; border-radius: 10px; border: 1px solid rgba(154,171,189,.22); background: rgba(14,22,32,.62); -webkit-backdrop-filter: blur(10px) saturate(1.3); backdrop-filter: blur(10px) saturate(1.3); cursor: pointer; font: 600 18px var(--f-mono); box-shadow: 0 6px 18px rgba(0,0,0,.3); }
 .mapbtns button:hover { border-color: var(--accent); }
+.mapbtns .qt { display: grid; place-items: center; color: var(--ink-2); }
+.mapbtns .qt[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
 .validtag { position: absolute; left: 12px; top: 12px; z-index: 2; pointer-events: none; background: rgba(10,17,25,.6); -webkit-backdrop-filter: blur(12px) saturate(1.3); backdrop-filter: blur(12px) saturate(1.3); border: 1px solid rgba(154,171,189,.22); border-radius: 12px; padding: 8px 12px; box-shadow: 0 8px 24px rgba(0,0,0,.35); }
 .validtag .k { font: 600 11px var(--f-display); letter-spacing: .16em; text-transform: uppercase; color: var(--accent); }
 .validtag .v { font: 500 15px var(--f-mono); font-variant-numeric: tabular-nums; }
 .validtag .s { font: 11px var(--f-mono); color: var(--ink-3); }
 .validtag .w { font: 11px var(--f-mono); color: #9fd0ff; margin-top: 3px; }
+.validtag .w + .w { margin-top: 1px; }
+.cbar { height: 10px; border-radius: 3px; margin-top: 8px; }
+.cticks { display: flex; justify-content: space-between; font: 10.5px var(--f-mono); color: var(--ink-3); margin-top: 3px; }
 .wpcrow { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 6px; margin-top: 4px; }
 .wpcrow .sel { margin-top: 0; }
 .wpcrow button { border: 1px solid var(--line); background: var(--panel-2); border-radius: 4px; width: 34px; cursor: pointer; }
@@ -274,6 +279,15 @@ canvas#map { position: absolute; inset: 0; width: 100%; height: 100%; display: b
         <div class="keyrow" id="spckey" style="margin-top:8px"></div>
       </section>
       <section class="sec">
+        <h2>Wind &amp; ocean <small>GFS</small></h2>
+        <div class="toggles">
+          <label class="tg"><input type="checkbox" id="t-wind"><span class="sw" style="background:linear-gradient(90deg,#a8c8ff,#9ff07a,#ffb347,#ff5cf0)"></span><span>Animated surface winds</span></label>
+          <label class="tg"><input type="checkbox" id="t-sst"><span class="sw" style="background:linear-gradient(90deg,#2c3fbf,#2bbf9c,#f2c443,#d63a3a)"></span><span>Ocean temperatures</span></label>
+        </div>
+        <div id="windkey" hidden><div class="cbar" style="background:linear-gradient(90deg,#a8c8ff 0%,#7fe0ff 15%,#9ff07a 30%,#fff06a 45%,#ffb347 60%,#ff6a5a 75%,#ff5cf0 100%)"></div><div class="cticks"><span>0</span><span>10</span><span>20</span><span>35</span><span>45</span><span>55</span><span>75 mph</span></div></div>
+        <div id="sstkey" hidden></div>
+      </section>
+      <section class="sec">
         <h2>Fronts &amp; pressure <small>WPC</small></h2>
         <label class="tg"><input type="checkbox" id="t-wpc"><span>Isobars, fronts, highs &amp; lows</span><span class="n" id="n-wpc"></span></label>
         <div class="wpcrow">
@@ -315,17 +329,19 @@ canvas#map { position: absolute; inset: 0; width: 100%; height: 100%; display: b
           <label class="tg"><input type="checkbox" id="t-cty" checked><span class="sw" style="background:#3a4c60"></span><span>County lines (when zoomed)</span></label>
         </div>
       </section>
-      <p class="note">Terrain and ocean depth: AWS Terrain Tiles (USGS elevation, NOAA ETOPO1 bathymetry). Roads, cities, rivers: Natural Earth. Snapshot build. Radar: NEXRAD base reflectivity mosaic via Iowa Environmental Mesonet. Model: NCEP HRRR. Alerts: api.weather.gov. Outlooks and reports: <a href="https://www.spc.noaa.gov/" target="_blank" rel="noopener">spc.noaa.gov</a>. Fronts and pressure: <a href="https://www.wpc.ncep.noaa.gov/basicwx/day0-7loop.html" target="_blank" rel="noopener">WPC</a>. Obs: aviationweather.gov.</p>
+      <p class="note">Terrain and ocean depth: AWS Terrain Tiles (USGS elevation, NOAA ETOPO1 bathymetry). Roads, cities, rivers: Natural Earth. Snapshot build. Radar: NEXRAD base reflectivity mosaic via Iowa Environmental Mesonet. Model: NCEP HRRR. Alerts: api.weather.gov. Outlooks and reports: <a href="https://www.spc.noaa.gov/" target="_blank" rel="noopener">spc.noaa.gov</a>. Fronts and pressure: <a href="https://www.wpc.ncep.noaa.gov/basicwx/day0-7loop.html" target="_blank" rel="noopener">WPC</a>. Winds and ocean temperatures: NCEP GFS. Obs: aviationweather.gov.</p>
     </aside>
 
     <main class="stage">
       <div class="mapwrap" id="mapwrap">
         <canvas id="map" aria-label="Weather map of the contiguous United States"></canvas>
-        <div class="validtag" id="validtag"><div class="k" id="vk">Radar</div><div class="v" id="vv">—</div><div class="s" id="vs"></div><div class="w" id="vw" hidden></div></div>
+        <div class="validtag" id="validtag"><div class="k" id="vk">Radar</div><div class="v" id="vv">—</div><div class="s" id="vs"></div><div class="w" id="vw" hidden></div><div class="w" id="vwind" hidden></div><div class="w" id="vsst" hidden></div></div>
         <div class="mapbtns">
           <button id="zin" aria-label="Zoom in">+</button>
           <button id="zout" aria-label="Zoom out">−</button>
           <button id="zhome" aria-label="Reset view" style="font-size:13px">⌂</button>
+          <button class="qt" data-for="t-wind" aria-pressed="false" aria-label="Animated winds" title="Animated winds"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8"/></svg></button>
+          <button class="qt" data-for="t-sst" aria-pressed="false" aria-label="Ocean temperatures" title="Ocean temperatures"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 15c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2M2 20c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2M12 3v7"/><circle cx="12" cy="10" r="1.5"/></svg></button>
         </div>
         <div class="probe" id="probe" hidden></div>
         <div class="loading" id="loading">Loading data…</div>
@@ -427,11 +443,11 @@ const S = {
   mode: "radar", field: "stp", frame: 0, playing: false, opacity: .85, spc: "day1otlk_cat",
   satKind: "ir",
   wpc: "auto",
-  show: { wpc: false, spc: true, alerts: true, sat: true, obs: true, rpts: true, ww: true, cty: true, roads: true, cities: true, water: true },
+  show: { wind: false, sst: false, wpc: false, spc: true, alerts: true, sat: true, obs: true, rpts: true, ww: true, cty: true, roads: true, cities: true, water: true },
   base: "terrain",
   t: d3.zoomIdentity, selected: null, chip: "all", filter: "",
 };
-let D = {}, proj, BH, TR = null, WR = null, imgs = { radar: [], hrrr: {}, wpc: [] }, probeCache = {}, paths = {}, fade = 1, lastStep = 0;
+let D = {}, proj, BH, TR = null, TRW = null, WR = null, SR = null, imgs = { radar: [], hrrr: {}, wpc: [] }, probeCache = {}, paths = {}, fade = 1, lastStep = 0;
 
 // ---------- helpers
 const fmtZ = iso => iso ? iso.slice(11, 16).replace(":", "") + "Z" : "";
@@ -466,6 +482,12 @@ async function boot() {
   const tb = await j("data/base/terrain.json").catch(() => null);
   // Terrain rectangle in base pixels; it bounds panning and zooming so the view never shows empty space.
   if (tb) TR = [(tb.x0 - f.x0) * k, (f.y1 - tb.y1) * k, (tb.x1 - f.x0) * k, (f.y1 - tb.y0) * k];
+  // Wider, lower-resolution terrain and ocean depth: lets the view zoom out over the open ocean.
+  const tw = await j("data/base/terrain_wide.json").catch(() => null);
+  if (tw) { TRW = [(tw.x0 - f.x0) * k, (f.y1 - tw.y1) * k, (tw.x1 - f.x0) * k, (f.y1 - tw.y0) * k]; imgs.wide = loadImg("data/base/terrain_wide.jpg").then(i => { imgs.wide = i; draw(); }); }
+  const sb = meta.sst?.bounds;
+  if (sb) SR = [(sb[0] - f.x0) * k, (f.y1 - sb[3]) * k, (sb[1] - f.x0) * k, (f.y1 - sb[2]) * k];
+  buildWindUI();
   const wb = meta.wpc?.bounds;  // [x0, x1, y0, y1] in Web Mercator meters
   if (wb) WR = [(wb[0] - f.x0) * k, (f.y1 - wb[3]) * k, (wb[1] - f.x0) * k, (f.y1 - wb[2]) * k];
   buildWpcUI();
@@ -586,7 +608,7 @@ function resize() {
 }
 const zoom = d3.zoom().scaleExtent([0.2, 60]).on("zoom", e => { S.t = e.transform; draw(); hideProbe(); });
 d3.select(canvas).call(zoom).on("dblclick.zoom", null);
-const bounds = () => TR || [0, 0, BW, BH || BW / 1.8];
+const bounds = () => TRW || TR || [0, 0, BW, BH || BW / 1.8];
 // Smallest zoom that still fills the whole view with map.
 function minK() { const b = bounds(); return Math.max(cw / (b[2] - b[0]), ch / (b[3] - b[1])); }
 function applyLimits() {
@@ -652,7 +674,10 @@ function draw(now = performance.now()) {
   ctx.setTransform(dpr * k, 0, 0, dpr * k, dpr * t.x, dpr * t.y);
   ctx.imageSmoothingEnabled = true;
   const terrainOn = S.base === "terrain" && imgs.terrain instanceof HTMLImageElement;
-  const tr = bounds();
+  const tr = TR || bounds();
+  if (TRW && imgs.wide instanceof HTMLImageElement) {
+    ctx.globalAlpha = terrainOn ? 1 : .45; ctx.drawImage(imgs.wide, TRW[0], TRW[1], TRW[2] - TRW[0], TRW[3] - TRW[1]); ctx.globalAlpha = 1;
+  }
   if (terrainOn) ctx.drawImage(imgs.terrain, tr[0], tr[1], tr[2] - tr[0], tr[3] - tr[1]);
   else {
     ctx.fillStyle = "#0d1824"; ctx.fillRect(tr[0], tr[1], tr[2] - tr[0], tr[3] - tr[1]);
@@ -667,6 +692,10 @@ function draw(now = performance.now()) {
   if (!terrainOn) { ctx.strokeStyle = "rgba(200,215,230,.25)"; ctx.lineWidth = .8 / k; ctx.stroke(paths.neighbors); }
   ctx.imageSmoothingEnabled = k < 3;
 
+  if (S.show.sst && SR) {
+    const si = sstImg();
+    if (si) { ctx.imageSmoothingEnabled = true; ctx.globalAlpha = .88; ctx.drawImage(si, SR[0], SR[1], SR[2] - SR[0], SR[3] - SR[1]); ctx.globalAlpha = 1; ctx.imageSmoothingEnabled = k < 3; }
+  }
   if (S.show.sat) { const si = satFor(); if (si) { ctx.globalAlpha = .92; ctx.drawImage(si, 0, 0, BW, BH); ctx.globalAlpha = 1; } }
 
   // Base raster with cross-fade between frames.
@@ -727,6 +756,7 @@ function draw(now = performance.now()) {
   // Back to screen space for point symbols so they stay a constant size.
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const sx = x => t.x + x * k, sy = y => t.y + y * k;
+  if (S.show.wind) drawWind();
   if (S.show.obs) drawObs(sx, sy, k);
   if (S.show.rpts) drawReports(sx, sy, k);
   if (S.show.cities) drawCities(sx, sy, k); else drawn = [];
@@ -825,7 +855,7 @@ function drawReports(sx, sy) {
 
 // ---------- animation loop
 let rafOn = false;
-function needsLoop() { return S.playing || fade < 1 || (S.show.alerts && !reduceMotion && (D.alerts.some(a => a.poly && PULSE.has(a.event)) || S.selected)); }
+function needsLoop() { return S.playing || fade < 1 || (S.show.wind && W.grid) || (S.show.alerts && !reduceMotion && (D.alerts.some(a => a.poly && PULSE.has(a.event)) || S.selected)); }
 function loop(now) {
   rafOn = false;
   const fl = frameList();
@@ -929,6 +959,114 @@ $("op").oninput = e => { S.opacity = e.target.value / 100; $("opv").textContent 
 $("satsel").onchange = e => { S.satKind = e.target.value; if (S.satKind !== "ir" && !S.show.sat) { S.show.sat = true; $("t-sat").checked = true; } draw(); };
 $("spcsel").onchange = e => { S.spc = e.target.value; spcKey(); draw(); };
 
+// ---------- GFS winds (animated particles) and ocean temperatures
+const W = { grid: null, hour: null, parts: [], trail: null, tctx: null, lastT: null, loading: null };
+const SST = { grid: null, img: undefined };
+const WIND_COLORS = [[0, "#a8c8ff"], [4.5, "#7fe0ff"], [9, "#9ff07a"], [15.5, "#fff06a"], [20, "#ffb347"], [24.5, "#ff6a5a"], [33.5, "#ff5cf0"]];
+const compass = d => ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"][Math.round(d / 22.5) % 16];
+const gunzipB64 = t => new Response(new Blob([Uint8Array.from(atob(t.trim()), c => c.charCodeAt(0))]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
+const tIso = iso => Date.parse(iso.replace(/Z$/, ":00Z"));
+function buildWindUI() {
+  const m = D.meta;
+  if (!m.wind) { $("t-wind").disabled = true; $("t-wind").closest("label").title = "Wind data unavailable in this update"; }
+  if (!m.sst) { $("t-sst").disabled = true; $("t-sst").closest("label").title = "Ocean data unavailable in this update"; }
+  if (m.sst) {
+    const sc = m.sst.scale, lo = sc[0][0], hi = sc.at(-1)[0];
+    $("sstkey").innerHTML = `<div class="cbar" style="background:linear-gradient(90deg,${sc.map(([v, c]) => `${c} ${((v - lo) / (hi - lo) * 100).toFixed(0)}%`).join(",")})"></div><div class="cticks">${[30, 40, 50, 60, 70, 80, 90].map(v => `<span>${v}${v === 90 ? "°F" : ""}</span>`).join("")}</div>`;
+  }
+  // Quick map buttons mirror the checkboxes.
+  document.querySelectorAll(".mapbtns .qt").forEach(b => {
+    const cb = $(b.dataset.for);
+    b.disabled = cb.disabled;
+    b.onclick = () => { cb.checked = !cb.checked; cb.dispatchEvent(new Event("change")); };
+    cb.addEventListener("change", () => b.setAttribute("aria-pressed", cb.checked));
+  });
+  $("t-wind").addEventListener("change", e => { $("windkey").hidden = !e.target.checked; $("vwind").hidden = !e.target.checked; if (e.target.checked) ensureWind(); });
+  $("t-sst").addEventListener("change", e => { $("sstkey").hidden = !e.target.checked; $("vsst").hidden = !e.target.checked; if (e.target.checked) ensureSst(); });
+}
+// The wind hour that matches the time on screen (HRRR hour, or now for radar).
+function windHour() {
+  const hs = D.meta.wind?.hours || []; if (!hs.length) return null;
+  const f = frameList()[S.frame], t = S.mode === "hrrr" && f ? tIso(f.valid) : Date.now();
+  return hs.reduce((a, b) => Math.abs(tIso(b.valid) - t) < Math.abs(tIso(a.valid) - t) ? b : a);
+}
+async function ensureWind() {
+  const h = windHour(); if (!h || W.hour === h || W.loading === h) return;
+  W.loading = h;
+  try {
+    const b = await gunzipB64(await fetch(`${h.src}?v=${D.meta.built}`).then(r => r.text()));
+    if (W.loading !== h) return;
+    W.grid = new Int8Array(b); W.hour = h;
+    $("vwind").textContent = `Wind: ${fmtLocal(h.valid)} · GFS`;
+    kick();
+  } catch (e) { console.warn("wind", e); } finally { if (W.loading === h) W.loading = null; }
+}
+async function ensureSst() {
+  const m = D.meta.sst; if (!m) return;
+  $("vsst").textContent = `Ocean temps: ${fmtLocal(m.valid)} · GFS analysis`;
+  if (!SST.grid) SST.grid = gunzipB64(await fetch(`${m.probe.src}?v=${D.meta.built}`).then(r => r.text())).then(b => (SST.grid = new Int16Array(b)));
+  draw();
+}
+function sstImg() {
+  if (SST.img !== undefined) return SST.img;
+  SST.img = null; loadImg(`${D.meta.sst.src}?v=${D.meta.built}`).then(i => { SST.img = i; draw(); });
+  return null;
+}
+function sstAt(lon, lat) {
+  const p = D.meta.sst.probe, g = SST.grid; if (!(g instanceof Int16Array)) return null;
+  const ix = Math.round((lon - p.lon0) / p.d), iy = Math.round((p.lat0 - lat) / p.d);
+  if (ix < 0 || iy < 0 || ix >= p.nx || iy >= p.ny) return null;
+  const v = g[iy * p.nx + ix]; return v === -32768 ? null : v / 10;
+}
+// Bilinear wind (m/s) at a point, or null outside the grid.
+function windAt(lon, lat) {
+  const m = D.meta.wind, g = W.grid; if (!g) return null;
+  const fx = (lon - m.lon0) / m.d, fy = (m.lat0 - lat) / m.d;
+  if (fx < 0 || fy < 0 || fx >= m.nx - 1 || fy >= m.ny - 1) return null;
+  const x = fx | 0, y = fy | 0, ax = fx - x, ay = fy - y, n = m.nx * m.ny, i = y * m.nx + x;
+  const bil = o => (g[o + i] * (1 - ax) + g[o + i + 1] * ax) * (1 - ay) + (g[o + i + m.nx] * (1 - ax) + g[o + i + m.nx + 1] * ax) * ay;
+  return [bil(0) * m.scale, bil(n) * m.scale];
+}
+function windSpawn(p) {
+  p.x = Math.random() * cw; p.y = Math.random() * ch; p.age = 0; p.max = 60 + Math.random() * 90;
+  return p;
+}
+function drawWind() {
+  if (!W.grid) { ensureWind(); return; }
+  if (windHour() !== W.hour) ensureWind();
+  const w = cw * dpr, h = ch * dpr;
+  if (!W.trail || W.trail.width !== w || W.trail.height !== h) {
+    W.trail = Object.assign(document.createElement("canvas"), { width: w, height: h }); W.tctx = W.trail.getContext("2d"); W.lastT = null;
+  }
+  const t = S.t, tc = W.tctx;
+  const target = Math.round(Math.min(5000, Math.max(900, cw * ch / (reduceMotion ? 900 : 260))));
+  // Panning or zooming invalidates the trails: clear and reseed.
+  if (!W.lastT || W.lastT.k !== t.k || W.lastT.x !== t.x || W.lastT.y !== t.y || W.parts.length !== target) {
+    tc.setTransform(1, 0, 0, 1, 0, 0); tc.clearRect(0, 0, w, h);
+    W.parts = Array.from({ length: target }, () => { const p = windSpawn({}); p.age = Math.random() * p.max; return p; });
+    W.lastT = { k: t.k, x: t.x, y: t.y };
+  }
+  tc.setTransform(1, 0, 0, 1, 0, 0);
+  tc.globalCompositeOperation = "destination-in"; tc.fillStyle = "rgba(0,0,0,.955)"; tc.fillRect(0, 0, w, h);
+  tc.globalCompositeOperation = "source-over";
+  tc.setTransform(dpr, 0, 0, dpr, 0, 0); tc.lineWidth = 1.6; tc.lineCap = "round";
+  const buckets = WIND_COLORS.map(() => new Path2D()), F = reduceMotion ? .04 : .12;
+  for (const p of W.parts) {
+    if (++p.age > p.max) { windSpawn(p); continue; }
+    const [lon, lat] = proj.invert([(p.x - t.x) / t.k, (p.y - t.y) / t.k]);
+    const wv = windAt(lon, lat);
+    if (!wv) { windSpawn(p); continue; }
+    const spd = Math.hypot(wv[0], wv[1]);
+    const nx = p.x + wv[0] * F, ny = p.y - wv[1] * F;
+    let b = 0; while (b < WIND_COLORS.length - 1 && spd >= WIND_COLORS[b + 1][0]) b++;
+    buckets[b].moveTo(p.x, p.y); buckets[b].lineTo(nx, ny);
+    p.x = nx; p.y = ny;
+    if (p.x < 0 || p.y < 0 || p.x > cw || p.y > ch) windSpawn(p);
+  }
+  buckets.forEach((path, i) => { tc.strokeStyle = WIND_COLORS[i][1]; tc.stroke(path); });
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.drawImage(W.trail, 0, 0); ctx.restore();
+}
+
 // ---------- WPC fronts and pressure
 const wpcFrames = () => D.meta.wpc?.frames || [];
 const wpcLabel = f => new Date(f.valid.replace(/Z$/, ":00Z")).toLocaleString([], { weekday: "short", hour: "numeric", timeZoneName: "short" });
@@ -970,7 +1108,7 @@ function wpcAnimate(on) {
 $("wpcsel").onchange = e => { wpcAnimate(false); S.wpc = e.target.value; if (!S.show.wpc) { S.show.wpc = true; $("t-wpc").checked = true; } draw(); };
 $("wpcplay").onclick = () => wpcAnimate(!wpcTimer);
 $("t-wpc").addEventListener("change", e => { if (!e.target.checked) { wpcAnimate(false); $("vw").hidden = true; } });
-[["t-wpc", "wpc"], ["t-roads", "roads"], ["t-cities", "cities"], ["t-water", "water"], ["t-spc", "spc"], ["t-alerts", "alerts"], ["t-sat", "sat"], ["t-obs", "obs"], ["t-rpts", "rpts"], ["t-ww", "ww"], ["t-cty", "cty"]]
+[["t-wind", "wind"], ["t-sst", "sst"], ["t-wpc", "wpc"], ["t-roads", "roads"], ["t-cities", "cities"], ["t-water", "water"], ["t-spc", "spc"], ["t-alerts", "alerts"], ["t-sat", "sat"], ["t-obs", "obs"], ["t-rpts", "rpts"], ["t-ww", "ww"], ["t-cty", "cty"]]
   .forEach(([id, k]) => $(id).onchange = e => { S.show[k] = e.target.checked; draw(); kick(); });
 
 function spcKey() {
@@ -1232,7 +1370,8 @@ canvas.addEventListener("pointermove", async e => {
   if (e.buttons) return;
   const tick = ++probeTick, r = canvas.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
   const bx = (mx - S.t.x) / S.t.k, by = (my - S.t.y) / S.t.k;
-  if (bx < 0 || by < 0 || bx > BW || by > BH) return hideProbe();
+  const bb = bounds();
+  if (bx < bb[0] || by < bb[1] || bx > bb[2] || by > bb[3]) return hideProbe();
   const [lon, lat] = proj.invert([bx, by]);
   const c = countyAt(bx, by);
   let rows = `<div class="r"><span>Lat/Lon</span><span>${lat.toFixed(2)}, ${lon.toFixed(2)}</span></div>`;
@@ -1247,6 +1386,11 @@ canvas.addEventListener("pointermove", async e => {
       }
     }
   }
+  if (S.show.wind && W.grid) {
+    const w = windAt(lon, lat);
+    if (w) { const spd = Math.hypot(w[0], w[1]), dir = (Math.atan2(-w[0], -w[1]) * 180 / Math.PI + 360) % 360; rows += `<div class="r"><span>Wind (GFS)</span><span>${compass(dir)} ${Math.round(spd * 2.237)} mph</span></div>`; }
+  }
+  if (S.show.sst && SST.grid) { const t = sstAt(lon, lat); if (t != null) rows += `<div class="r"><span>Ocean temp</span><span>${t.toFixed(0)}°F</span></div>`; }
   const near = nearestObs(mx, my);
   if (near) rows += `<div class="r"><span>${near.id}</span><span>${Math.round(cToF(near.t))}°/${near.td != null ? Math.round(cToF(near.td)) : "–"}° ${near.wd ?? ""}${near.ws != null ? "@" + near.ws + "kt" : ""}</span></div>`;
   const rep = nearestReport(mx, my);

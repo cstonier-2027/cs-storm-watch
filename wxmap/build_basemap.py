@@ -163,6 +163,29 @@ def lines(fc, keep, props):
     return {"type": "FeatureCollection", "features": out}
 
 
+def build_wide():
+    """Lower-resolution terrain and ocean depth for the zoomed-out view (Hawaii to the mid-Atlantic,
+    the Caribbean up to the Gulf of Alaska). Drawn under the detailed terrain.jpg."""
+    global X0, Y0, X1, Y1, TW, TH, Z, LON0, LON1, LAT0, LAT1
+    X0, Y0 = _m(-170, 2)
+    X1, Y1 = _m(-30, 64)
+    TW, Z = 3600, 5
+    TH = round(TW * (Y1 - Y0) / (X1 - X0))
+    LON0, LON1, LAT0, LAT1 = -170, -30, 2, 64
+    countries = cached_json("ne_10m_admin_0_countries_lakes.geojson")
+    lakes = cached_json("ne_10m_lakes.geojson")
+    big_lakes = {"type": "FeatureCollection", "features": [
+        f for f in lakes["features"] if f["geometry"] and (f["properties"].get("scalerank") or 9) <= 2]}
+    print("wide elevation…")
+    elev = elevation()
+    land = land_mask(countries, big_lakes)
+    terrain(elev, land).save(os.path.join(OUT, "terrain_wide.jpg"), quality=82, optimize=True, progressive=True)
+    # Land mask for clipping the sea-temperature layer at the coast (used by build.py, not the page).
+    Image.fromarray((land * 255).astype(np.uint8)).convert("1").save(os.path.join(HERE, "land_wide.png"), optimize=True)
+    json.dump({"x0": X0, "x1": X1, "y0": Y0, "y1": Y1}, open(os.path.join(OUT, "terrain_wide.json"), "w"))
+    print("terrain_wide.jpg", TW, TH, os.path.getsize(os.path.join(OUT, "terrain_wide.jpg")) // 1024, "KB")
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     countries = cached_json("ne_10m_admin_0_countries_lakes.geojson")
@@ -230,4 +253,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+    build_wide() if "--wide" in sys.argv else main()

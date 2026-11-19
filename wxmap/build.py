@@ -352,6 +352,162 @@ def build_wpc(now):
     return {"bounds": bounds, "frames": frames} if frames else None
 
 
+# ---------------------------------------------------------------- GFS winds and sea temperatures
+# Same box as the wide basemap (data/base/terrain_wide.json), so both layers reach the open ocean.
+GFS_BOX = (-170, -30, 2, 64)          # west, east, south, north
+GFS_STEP = 2                          # keep every 2nd 0.25-degree point: 0.5-degree wind grid
+WIND_SCALE = 0.5                      # m/s per stored unit (int8)
+WIND_HOURS = 48
+
+
+def gfs_url(cycle, fh, params):
+    w, e, s, n = GFS_BOX
+    return ("https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl"
+            f"?dir=%2Fgfs.{cycle:%Y%m%d}%2F{cycle:%H}%2Fatmos&file=gfs.t{cycle:%H}z.pgrb2.0p25.f{fh:03d}&{params}"
+            f"&subregion=&toplat={n}&leftlon={w % 360}&rightlon={e % 360}&bottomlat={s}")
+
+
+def gfs_fields(cycle, fh, params):
+    """Decode a filtered GFS GRIB2 into {shortName: 2-D array}, north row first."""
+    b = get(gfs_url(cycle, fh, params), binary=True)
+    if not b.startswith(b"GRIB"):
+        raise RuntimeError("not available yet")
+    out = {}
+    pos = 0
+    while True:
+        gid = eccodes.codes_new_from_message(b[pos:]) if pos < len(b) else None
+        if gid is None:
+            break
+        pos += eccodes.codes_get(gid, "totalLength")
+        nx, ny = eccodes.codes_get(gid, "Ni"), eccodes.codes_get(gid, "Nj")
+        v = eccodes.codes_get_values(gid).reshape(ny, nx)
+        if eccodes.codes_get(gid, "jScansPositively"):
+            v = v[::-1]
+        out[eccodes.codes_get(gid, "shortName")] = v
+        eccodes.codes_release(gid)
+    return out
+
+
+def latest_gfs_cycle(now):
+    t = now.replace(minute=0, second=0, microsecond=0) - dt.timedelta(hours=3)
+    t = t.replace(hour=t.hour // 6 * 6)
+    for _ in range(4):
+        try:
+            gfs_fields(t, 0, "var_LAND=on&lev_surface=on")
+            return t
+        except Exception:
+            t -= dt.timedelta(hours=6)
+    raise RuntimeError("no GFS cycle found")
+
+
+def b64gz(a):
+    return base64.b64encode(gzip.compress(a.tobytes(), 9)).decode()
+
+
+def build_wind(now, cycle):
+    """10 m wind on a 0.5-degree grid for the particle animation, one text file per forecast hour."""
+    start = max(0, int((now - cycle).total_seconds() // 3600) // 3 * 3)
+    fhs = list(range(start, start + WIND_HOURS + 1, 3))
+    os.makedirs(os.path.join(OUT, "wind"), exist_ok=True)
+
+    def one(fh):
+        try:
+            f = gfs_fields(cycle, fh, "var_UGRD=on&var_VGRD=on&lev_10_m_above_ground=on")
+        except Exception as e:
+            print("FAILED wind f%03d" % fh, repr(e))
+            return None
+        u, v = f["10u"][::GFS_STEP, ::GFS_STEP], f["10v"][::GFS_STEP, ::GFS_STEP]
+        q = np.stack([u, v]) / WIND_SCALE
+        q = np.clip(np.nan_to_num(np.rint(q)), -127, 127).astype(np.int8)
+        name = f"wind/wind_{fh:03d}.txt"
+        save(name, b64gz(q))
+        return {"fh": fh, "valid": (cycle + dt.timedelta(hours=fh)).strftime("%Y-%m-%dT%H:%MZ"), "src": "data/" + name,
+                "shape": [int(q.shape[1]), int(q.shape[2])]}
+
+    with cf.ThreadPoolExecutor(2) as ex:
+        hours = [h for h in ex.map(one, fhs) if h]
+    if not hours:
+        return None
+    w, e, s_, n = GFS_BOX
+    ny, nx = hours[0]["shape"]
+    return {"cycle": cycle.strftime("%Y-%m-%dT%H:%MZ"), "lon0": w, "lat0": n, "d": 0.25 * GFS_STEP,
+            "nx": nx, "ny": ny, "scale": WIND_SCALE, "hours": hours}
+
+
+SST_SCALE = [(28, "#3b1c8c"), (36, "#2c3fbf"), (44, "#1f78d1"), (50, "#20a4c8"), (56, "#2bbf9c"),
+             (62, "#6ccf5a"), (68, "#c6d84a"), (72, "#f2c443"), (76, "#f59a35"), (80, "#ea6a2e"),
+             (84, "#d63a3a"), (88, "#b0206a"), (92, "#e07ad8")]
+
+
+def fill_nan(a, rounds=12):
+    """Spread ocean values a few cells inland so the fine coastline mask never shows gaps."""
+    a = a.copy()
+    for _ in range(rounds):
+        m = np.isnan(a)
+        if not m.any():
+            break
+        p = np.pad(a, 1, constant_values=np.nan)
+        nb = np.stack([p[1 + dy:p.shape[0] - 1 + dy, 1 + dx:p.shape[1] - 1 + dx]
+                       for dy in (-1, 0, 1) for dx in (-1, 0, 1) if dy or dx])
+        cnt = (~np.isnan(nb)).sum(0)
+        mean = np.where(cnt > 0, np.nansum(nb, 0) / np.maximum(cnt, 1), np.nan)
+        a[m] = mean[m]
+    return a
+
+
+def build_sst(cycle):
+    """Sea surface temperature from the GFS analysis (surface temperature over open water)."""
+    f = gfs_fields(cycle, 0, "var_TMP=on&var_LAND=on&var_ICEC=on&lev_surface=on")
+    t = (f["t"] - 273.15) * 9 / 5 + 32
+    water = (f["lsm"] < 0.5) & (np.nan_to_num(f.get("ci", np.zeros_like(t))) < 0.5)
+    sst = fill_nan(np.where(water, t, np.nan))
+    w, e, s_, n = GFS_BOX
+    with open(os.path.join(OUT, "base", "terrain_wide.json")) as fh:
+        tb = json.load(fh)
+    land = np.asarray(Image.open(os.path.join(HERE, "land_wide.png")).convert("L"))
+    oh, ow = land.shape[0] * 2 // 5, land.shape[1] * 2 // 5   # ~1440 px wide is plenty for smooth temperatures
+    land = np.asarray(Image.fromarray(land).resize((ow, oh), Image.BILINEAR)) > 127
+    # Output pixels (Mercator) -> GFS lat/lon grid, bilinear.
+    xs = tb["x0"] + (np.arange(ow) + .5) * (tb["x1"] - tb["x0"]) / ow
+    ys = tb["y1"] - (np.arange(oh) + .5) * (tb["y1"] - tb["y0"]) / oh
+    lon = np.degrees(xs / R)
+    lat = np.degrees(2 * np.arctan(np.exp(ys / R)) - np.pi / 2)
+    fx = np.clip((lon - w) / 0.25, 0, sst.shape[1] - 1.001)
+    fy = np.clip((n - lat) / 0.25, 0, sst.shape[0] - 1.001)
+    x0, y0 = fx.astype(int), fy.astype(int)
+    ax, ay = fx - x0, fy - y0
+    g = lambda yy, xx: sst[np.ix_(yy, xx)]
+    v = (g(y0, x0) * (1 - ax) * (1 - ay)[:, None] + g(y0, x0 + 1) * ax * (1 - ay)[:, None]
+         + g(y0 + 1, x0) * (1 - ax) * ay[:, None] + g(y0 + 1, x0 + 1) * ax * ay[:, None])
+    rgba = np.zeros(v.shape + (4,), np.uint8)
+    stops = np.array([lo for lo, _ in SST_SCALE], np.float32)
+    cols = np.array([hx(c) for _, c in SST_SCALE], np.float32)
+    vv = np.nan_to_num(v, nan=-99)
+    for c in range(3):
+        rgba[..., c] = np.interp(vv, stops, cols[:, c]).astype(np.uint8)
+    rgba[..., 3] = np.where(np.isnan(v) | land, 0, 205)
+    save_png = os.path.join(OUT, "sst.png")
+    Image.fromarray(rgba, "RGBA").quantize(96, method=Image.FASTOCTREE).save(save_png, optimize=True)
+    # Coarse grid for the hover readout (deg F x 10, int16).
+    pr = np.where(np.isnan(sst), -32768, np.rint(sst * 10))[::GFS_STEP, ::GFS_STEP].astype("<i2")
+    save("sst_probe.txt", b64gz(pr))
+    return {"src": "data/sst.png", "valid": cycle.strftime("%Y-%m-%dT%H:%MZ"), "bounds": [tb["x0"], tb["x1"], tb["y0"], tb["y1"]],
+            "scale": SST_SCALE, "probe": {"src": "data/sst_probe.txt", "lon0": w, "lat0": n, "d": 0.25 * GFS_STEP,
+                                          "nx": int(pr.shape[1]), "ny": int(pr.shape[0])}}
+
+
+def build_gfs(now):
+    cycle = latest_gfs_cycle(now)
+    print("GFS cycle", cycle)
+    out = {"wind": build_wind(now, cycle)}
+    try:
+        out["sst"] = build_sst(cycle)
+    except Exception as e:
+        print("FAILED sst", repr(e))
+        out["sst"] = None
+    return out
+
+
 def latest_hrrr_cycle(now):
     for back in range(1, 6):
         c = now - dt.timedelta(hours=back)
@@ -549,7 +705,7 @@ def build_hrrr(now):
 def main():
     os.makedirs(OUT, exist_ok=True)
     # Start clean so nothing from an earlier run (past radar scans, old model hours) is published.
-    for sub in ("radar", "hrrr", "sat", "wpc"):
+    for sub in ("radar", "hrrr", "sat", "wpc", "wind"):
         d = os.path.join(OUT, sub)
         if os.path.isdir(d):
             for fn in os.listdir(d):
@@ -561,7 +717,7 @@ def main():
         jobs = {"alerts": ex.submit(build_alerts), "spc": ex.submit(build_spc),
                 "reports": ex.submit(build_reports), "metars": ex.submit(build_metars),
                 "wm": ex.submit(build_watches_mds), "radar": ex.submit(build_radar, now),
-                "sat": ex.submit(build_satellite, now), "wpc": ex.submit(build_wpc, now)}
+                "sat": ex.submit(build_satellite, now), "wpc": ex.submit(build_wpc, now), "gfs": ex.submit(build_gfs, now)}
         hrrr = build_hrrr(now)
         res = {}
         for k, j in jobs.items():
@@ -580,6 +736,8 @@ def main():
     meta["radar"] = res["radar"] or []
     meta["sat"] = res["sat"] or []
     meta["wpc"] = res["wpc"]
+    meta["wind"] = (res["gfs"] or {}).get("wind")
+    meta["sst"] = (res["gfs"] or {}).get("sst")
     hour_stats = [h.pop("fc", None) for h in hrrr["hours"]]
     cpx = hrrr.pop("_cpx", [])
     try:
