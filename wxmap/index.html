@@ -173,6 +173,19 @@ canvas#map { position: absolute; inset: 0; width: 100%; height: 100%; display: b
 .summary b { display: block; font: 600 22px/1 var(--f-display); font-variant-numeric: tabular-nums; }
 .summary span { font: 10.5px var(--f-mono); color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em; }
 .note { font-size: 12px; color: var(--ink-3); }
+.presets { position: absolute; left: 10px; right: 58px; bottom: 10px; z-index: 2; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 2px; }
+.presets::-webkit-scrollbar { display: none; }
+.presets button { flex: none; border: 1px solid rgba(154,171,189,.25); background: rgba(10,17,25,.68); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); color: var(--ink); border-radius: 999px; padding: 7px 13px; font: 500 13px var(--f-body); cursor: pointer; white-space: nowrap; box-shadow: 0 4px 14px rgba(0,0,0,.3); }
+.presets button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #04121c; font-weight: 600; }
+.toast { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); z-index: 5; background: rgba(10,17,25,.9); border: 1px solid var(--line); border-radius: 10px; padding: 8px 14px; font-size: 13px; box-shadow: 0 8px 24px rgba(0,0,0,.4); max-width: 80%; }
+.tip { position: absolute; left: 10px; right: 58px; bottom: 56px; z-index: 2; display: flex; gap: 10px; align-items: center; background: rgba(23,35,49,.92); border: 1px solid var(--accent); border-radius: 10px; padding: 8px 10px 8px 12px; font-size: 13px; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+.tip button { margin-left: auto; border: 0; background: transparent; cursor: pointer; color: var(--ink-2); font-size: 14px; }
+.find .saved { width: 100%; text-align: left; margin-bottom: 6px; border: 1px solid var(--line); background: var(--panel-2); border-radius: 6px; padding: 8px 11px; cursor: pointer; font-size: 14px; }
+.find .saved b { color: var(--accent); font-weight: 600; }
+.qh { width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink-2); font: 600 11px var(--f-mono); cursor: pointer; padding: 0; letter-spacing: 0; }
+.qh[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); }
+.hint { margin: -2px 0 8px; font-size: 12.5px; color: var(--ink-2); background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; }
+.fhelp { margin: 6px 2px 0; font-size: 12px; color: var(--ink-2); }
 /* Place panel: one city's outlook from the map data plus the NWS 7-day forecast. */
 .find input { width: 100%; background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 9px 11px; font-size: 14px; }
 .find input::placeholder { color: var(--ink-3); }
@@ -256,10 +269,11 @@ canvas#map { position: absolute; inset: 0; width: 100%; height: 100%; display: b
   <div class="body">
     <aside class="rail" aria-label="Map layers">
       <section class="sec">
-        <h2>Base layer</h2>
+        <h2>Base layer <button class="qh" aria-expanded="false" aria-controls="h-base" aria-label="What is this?">?</button></h2>
+        <p class="hint" id="h-base" hidden><b>Radar</b> shows the last hour of real radar. <b>Forecast</b> plays the HRRR model's next 18 hours: future radar, storm ingredients, temperature and more.</p>
         <div class="seg" role="group" aria-label="Base layer">
           <button id="m-radar" aria-pressed="true">Radar</button>
-          <button id="m-hrrr" aria-pressed="false">HRRR</button>
+          <button id="m-hrrr" aria-pressed="false" title="HRRR model forecast, next 18 hours">Forecast</button>
           <button id="m-none" aria-pressed="false">Off</button>
         </div>
         <div class="fieldlist" id="fields" hidden></div>
@@ -270,7 +284,8 @@ canvas#map { position: absolute; inset: 0; width: 100%; height: 100%; display: b
         <div class="legend" id="legend"></div>
       </section>
       <section class="sec">
-        <h2>SPC outlook</h2>
+        <h2>SPC outlook <button class="qh" aria-expanded="false" aria-controls="h-spc" aria-label="What is this?">?</button></h2>
+        <p class="hint" id="h-spc" hidden>The Storm Prediction Center's forecast of where severe storms are likely. Risk levels run from Marginal (1) to High (5). The tornado, wind and hail maps show the chance within 25 miles of a point.</p>
         <label class="tg"><input type="checkbox" id="t-spc" checked><span>Show convective outlook</span></label>
         <select class="sel" id="spcsel" aria-label="Outlook product">
           <option value="day1otlk_cat">Day 1 · Categorical</option>
@@ -283,7 +298,8 @@ canvas#map { position: absolute; inset: 0; width: 100%; height: 100%; display: b
         <div class="keyrow" id="spckey" style="margin-top:8px"></div>
       </section>
       <section class="sec">
-        <h2>Wind &amp; ocean <small>GFS</small></h2>
+        <h2>Wind &amp; ocean <button class="qh" aria-expanded="false" aria-controls="h-wind" aria-label="What is this?">?</button></h2>
+        <p class="hint" id="h-wind" hidden>Moving streaks show surface wind direction and speed from NOAA's GFS model, matched to the map's time. Ocean colors are today's sea-surface temperatures.</p>
         <div class="toggles">
           <label class="tg"><input type="checkbox" id="t-wind"><span class="sw" style="background:linear-gradient(90deg,#a8c8ff,#9ff07a,#ffb347,#ff5cf0)"></span><span>Animated surface winds</span></label>
           <label class="tg"><input type="checkbox" id="t-sst"><span class="sw" style="background:linear-gradient(90deg,#2c3fbf,#2bbf9c,#f2c443,#d63a3a)"></span><span>Ocean temperatures</span></label>
@@ -292,7 +308,8 @@ canvas#map { position: absolute; inset: 0; width: 100%; height: 100%; display: b
         <div id="sstkey" hidden></div>
       </section>
       <section class="sec">
-        <h2>Fronts &amp; pressure <small>WPC</small></h2>
+        <h2>Fronts &amp; pressure <button class="qh" aria-expanded="false" aria-controls="h-wpc" aria-label="What is this?">?</button></h2>
+        <p class="hint" id="h-wpc" hidden>The Weather Prediction Center's surface charts: cold and warm fronts, high and low pressure centers, and isobars (lines of equal pressure). Tight isobars mean strong wind.</p>
         <label class="tg"><input type="checkbox" id="t-wpc"><span>Isobars, fronts, highs &amp; lows</span><span class="n" id="n-wpc"></span></label>
         <div class="wpcrow">
           <select class="sel" id="wpcsel" aria-label="Fronts and pressure chart time"><option value="auto">Match the map's time</option></select>
@@ -344,10 +361,14 @@ canvas#map { position: absolute; inset: 0; width: 100%; height: 100%; display: b
           <button id="zin" aria-label="Zoom in">+</button>
           <button id="zout" aria-label="Zoom out">−</button>
           <button id="zhome" aria-label="Reset view" style="font-size:13px">⌂</button>
+          <button class="qt" id="locate" aria-label="My location forecast" title="My location forecast"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
           <button class="qt" data-for="t-wind" aria-pressed="false" aria-label="Animated winds" title="Animated winds"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8"/></svg></button>
           <button class="qt" data-for="t-sst" aria-pressed="false" aria-label="Ocean temperatures" title="Ocean temperatures"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 15c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2M2 20c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2M12 3v7"/><circle cx="12" cy="10" r="1.5"/></svg></button>
         </div>
         <div class="probe" id="probe" hidden></div>
+        <div class="presets" id="presets" role="group" aria-label="Quick views"></div>
+        <div class="toast" id="toast" role="status" hidden></div>
+        <div class="tip" id="tip" hidden><span>Tip: tap any city for its forecast, or pick a quick view along the bottom of the map.</span><button id="tipx" aria-label="Dismiss tip">✕</button></div>
         <div class="loading" id="loading">Loading data…</div>
       </div>
       <div class="timeline">
@@ -361,6 +382,7 @@ canvas#map { position: absolute; inset: 0; width: 100%; height: 100%; display: b
 
     <aside class="rail right" aria-label="Active hazards">
       <section class="sec find">
+        <button class="saved" id="savedplace" hidden></button>
         <input id="cityq" type="search" list="citylist" placeholder="Find a city for its forecast…" autocomplete="off" aria-label="Find a city">
         <datalist id="citylist"></datalist>
       </section>
@@ -429,17 +451,17 @@ const PULSE = new Set(["Tornado Warning", "Severe Thunderstorm Warning", "Flash 
 // NEXRAD reflectivity colors used by the IEM n0q composite.
 const RADAR_SCALE = [[5,"#04e9e7"],[10,"#019ff4"],[15,"#0300f4"],[20,"#02fd02"],[25,"#01c501"],[30,"#008e00"],[35,"#fdf802"],[40,"#e5bc00"],[45,"#fd9500"],[50,"#fd0000"],[55,"#d40000"],[60,"#bc0000"],[65,"#f800fd"],[70,"#9854c6"],[75,"#fdfdfd"]];
 const FIELD_INFO = {
-  refc: { name: "Simulated reflectivity", unit: "dBZ", fmt: v => v.toFixed(0) + " dBZ" },
-  stp: { name: "Significant tornado parameter", unit: "fixed-layer, ML parcel", fmt: v => v.toFixed(1) },
-  mlcape: { name: "Mixed-layer CAPE", unit: "J/kg", fmt: v => v.toFixed(0) + " J/kg" },
-  sbcape: { name: "Surface-based CAPE", unit: "J/kg", fmt: v => v.toFixed(0) + " J/kg" },
-  mlcin: { name: "Mixed-layer CIN", unit: "J/kg", fmt: v => v.toFixed(0) + " J/kg" },
-  srh1: { name: "0–1 km storm-relative helicity", unit: "m²/s²", fmt: v => v.toFixed(0) + " m²/s²" },
-  srh3: { name: "0–3 km storm-relative helicity", unit: "m²/s²", fmt: v => v.toFixed(0) + " m²/s²" },
-  shr6: { name: "0–6 km bulk shear", unit: "kt", fmt: v => v.toFixed(0) + " kt" },
-  uh: { name: "2–5 km updraft helicity (1-h max)", unit: "m²/s²", fmt: v => v.toFixed(0) + " m²/s²" },
-  t2: { name: "2 m temperature", unit: "°F", fmt: v => v.toFixed(0) + "°F" },
-  td2: { name: "2 m dewpoint", unit: "°F", fmt: v => v.toFixed(0) + "°F" },
+  refc: { name: "Simulated reflectivity", plain: "Future radar", help: "What radar is expected to look like, hour by hour. Yellow and red are heavy rain or storms.", unit: "dBZ", fmt: v => v.toFixed(0) + " dBZ" },
+  stp: { name: "Significant tornado parameter", plain: "Tornado ingredients (STP)", help: "Combines instability, low-level spin and wind shear. Above 1 means strong tornadoes are possible if storms form there.", unit: "fixed-layer, ML parcel", fmt: v => v.toFixed(1) },
+  mlcape: { name: "Mixed-layer CAPE", plain: "Storm fuel (CAPE)", help: "How strongly air can rise. 1,000+ supports thunderstorms; 3,000+ is very unstable.", unit: "J/kg", fmt: v => v.toFixed(0) + " J/kg" },
+  sbcape: { name: "Surface-based CAPE", plain: "Storm fuel, surface (SBCAPE)", help: "Instability for air rising from right at the ground.", unit: "J/kg", fmt: v => v.toFixed(0) + " J/kg" },
+  mlcin: { name: "Mixed-layer CIN", plain: "Storm lid (CIN)", help: "How much the atmosphere resists storms forming. Strongly negative values mean a cap is holding storms back.", unit: "J/kg", fmt: v => v.toFixed(0) + " J/kg" },
+  srh1: { name: "0–1 km storm-relative helicity", plain: "Low-level spin (SRH 0–1 km)", help: "Spin available near the ground for tornadoes. 150+ is notable; 300+ is high.", unit: "m²/s²", fmt: v => v.toFixed(0) + " m²/s²" },
+  srh3: { name: "0–3 km storm-relative helicity", plain: "Spin, deep layer (SRH 0–3 km)", help: "Spin through the lowest 3 km; feeds rotating storms (supercells).", unit: "m²/s²", fmt: v => v.toFixed(0) + " m²/s²" },
+  shr6: { name: "0–6 km bulk shear", plain: "Wind shear (0–6 km)", help: "How much the wind changes with height. 40+ kt helps storms organize into supercells.", unit: "kt", fmt: v => v.toFixed(0) + " kt" },
+  uh: { name: "2–5 km updraft helicity (1-h max)", plain: "Rotating storms (UH)", help: "Where the model's storms rotate. 75+ suggests supercells; streaks show their tracks.", unit: "m²/s²", fmt: v => v.toFixed(0) + " m²/s²" },
+  t2: { name: "2 m temperature", plain: "Temperature", help: "Air temperature about 6 ft above the ground.", unit: "°F", fmt: v => v.toFixed(0) + "°F" },
+  td2: { name: "2 m dewpoint", plain: "Humidity (dewpoint)", help: "Moisture in the air. 60s°F feels muggy; 70s°F is very humid and fuels storms.", unit: "°F", fmt: v => v.toFixed(0) + "°F" },
 };
 const FIELD_ORDER = ["refc", "stp", "mlcape", "sbcape", "srh1", "srh3", "shr6", "uh", "t2", "td2"];
 
@@ -503,14 +525,16 @@ async function boot() {
   spcKey();
   resize();
   fitHome(false);
-  setMode("radar");
+  restoreSettings();
   // Radar frames first (default view), model frames on demand.
   imgs.radar = await Promise.all(meta.radar.map(r => loadImg(r.src + "?v=" + meta.built)));
   imgs.sat = {};
   const sf = (meta.sat || []).at(-1); if (sf) await satImg(sf, "ir");
   $("loading").hidden = true;
-  S.frame = meta.radar.length - 1; syncSlider(); draw();
-  if (!reduceMotion) togglePlay(true);
+  if (S.mode === "radar") S.frame = meta.radar.length - 1;
+  syncSlider(); draw();
+  if (!reduceMotion && S.mode !== "none") togglePlay(true);
+  firstVisitTip();
 }
 
 function stamps() {
@@ -910,7 +934,7 @@ function syncSlider() {
     $("vs").textContent = f ? `${fmtZ(f.t)} · ${lag === 0 ? "Latest scan" : `${lag * 5} min before latest`}` : "";
     $("lab0").textContent = fl[0] ? fmtZ(fl[0].t) : ""; $("lab1").textContent = fl.at(-1) ? fmtZ(fl.at(-1).t) : "";
   } else if (S.mode === "hrrr") {
-    $("vk").textContent = "HRRR · " + FIELD_INFO[S.field].name;
+    $("vk").textContent = "Forecast · " + FIELD_INFO[S.field].plain;
     $("vv").textContent = f ? fmtLocal(f.valid) : "—";
     const ahead = S.frame === 0 ? "Now" : `+${S.frame} h`;
     $("vs").textContent = f ? `${ahead} · valid ${fmtZ(f.valid)} · HRRR ${fmtZ(D.meta.hrrr.cycle)} run F${String(f.fh).padStart(2, "0")}` : "";
@@ -920,9 +944,81 @@ function syncSlider() {
   }
 }
 
+// ---------- quick views, remembered settings, my location
+const PRESETS = [
+  ["radar", "Live radar", { mode: "radar", show: { alerts: true, sat: true, spc: false, wind: false, sst: false, wpc: false } }],
+  ["severe", "Severe storms", { mode: "hrrr", field: "stp", spc: "day1otlk_cat", show: { alerts: true, ww: true, spc: true, sat: false, wind: false, sst: false, wpc: false } }],
+  ["rain", "Rain & flooding", { mode: "hrrr", field: "refc", show: { alerts: true, sat: true, spc: false, wind: false, sst: false, wpc: false } }],
+  ["temp", "Temperature", { mode: "hrrr", field: "t2", show: { sat: false, spc: false, wind: false, sst: false, wpc: false } }],
+  ["fronts", "Winds & fronts", { mode: "radar", show: { wind: true, wpc: true, sat: true, spc: false, sst: false } }],
+  ["ocean", "Ocean temps", { mode: "none", show: { sst: true, wind: true, sat: false, spc: false, wpc: false }, zoomOut: true }],
+];
+const SHOW_IDS = { alerts: "t-alerts", sat: "t-sat", spc: "t-spc", wind: "t-wind", sst: "t-sst", wpc: "t-wpc", ww: "t-ww", obs: "t-obs", rpts: "t-rpts", roads: "t-roads", cities: "t-cities", water: "t-water", cty: "t-cty" };
+let restoring = false;
+function setShow(k, on) {
+  const cb = $(SHOW_IDS[k]); if (!cb || cb.disabled || cb.checked === on) return;
+  cb.checked = on; cb.dispatchEvent(new Event("change"));
+}
+function setField(f) {
+  const b = $("fields").querySelector(`button[data-f="${f}"]`); if (b && S.field !== f) b.click();
+}
+function applyView(v) {
+  restoring = true;
+  if (v.field) setField(v.field);
+  if (v.mode && v.mode !== S.mode) setMode(v.mode);
+  if (v.spc && $("spcsel").value !== v.spc) { $("spcsel").value = v.spc; $("spcsel").dispatchEvent(new Event("change")); }
+  Object.entries(v.show || {}).forEach(([k, on]) => setShow(k, on));
+  restoring = false;
+  if (v.zoomOut) d3.select(canvas).transition().duration(reduceMotion ? 0 : 700).call(zoom.scaleTo, 0);
+  saveSettings(); kick(); draw();
+}
+function buildPresets() {
+  $("presets").innerHTML = PRESETS.map(([k, label]) => `<button data-k="${k}" aria-pressed="false">${label}</button>`).join("");
+  $("presets").onclick = e => {
+    const b = e.target.closest("button"); if (!b) return;
+    applyView(PRESETS.find(p => p[0] === b.dataset.k)[2]);
+    [...$("presets").children].forEach(x => x.setAttribute("aria-pressed", x === b));
+    hideTip();
+  };
+}
+const store = { get: k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
+function saveSettings() {
+  if (restoring || !D.meta) return;
+  store.set("csw.settings", { mode: S.mode, field: S.field, spc: S.spc, show: { ...S.show } });
+}
+function restoreSettings() {
+  buildPresets();
+  const v = store.get("csw.settings");
+  setMode("radar");
+  if (v) applyView(v);
+  const p = store.get("csw.place");
+  if (p) { $("savedplace").hidden = false; $("savedplace").innerHTML = `★ <b>${esc(p.n)}${p.abbr ? ", " + esc(p.abbr) : ""}</b> forecast`; $("savedplace").onclick = () => selectPlace(p, true); }
+}
+document.addEventListener("change", e => { if (e.target.matches(".rail input, .rail select")) { saveSettings(); [...$("presets").children].forEach(x => x.setAttribute("aria-pressed", false)); } });
+let toastTimer = null;
+function toast(msg) { $("toast").textContent = msg; $("toast").hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { $("toast").hidden = true; }, 4000); }
+$("locate").onclick = () => {
+  if (!navigator.geolocation) return toast("This browser can't share your location.");
+  toast("Finding your location…");
+  navigator.geolocation.getCurrentPosition(pos => {
+    const near = nearestPlace(pos.coords.longitude, pos.coords.latitude, 80);
+    if (near) { $("toast").hidden = true; selectPlace(near, true); }
+    else toast("You're outside the area this map covers with city forecasts.");
+  }, () => toast("Location wasn't shared. You can search for your city instead."), { maximumAge: 600000, timeout: 15000 });
+};
+function firstVisitTip() {
+  if (store.get("csw.tipSeen")) return;
+  $("tip").hidden = false; $("tipx").onclick = hideTip;
+}
+function hideTip() { $("tip").hidden = true; store.set("csw.tipSeen", true); }
+
 // ---------- controls
+document.querySelectorAll(".qh").forEach(b => b.onclick = e => {
+  e.preventDefault(); const h = $(b.getAttribute("aria-controls")), open = h.hidden;
+  h.hidden = !open; b.setAttribute("aria-expanded", open);
+});
 function setMode(m) {
-  S.mode = m; ["radar", "hrrr", "none"].forEach(x => $("m-" + x).setAttribute("aria-pressed", x === m));
+  S.mode = m; saveSettings(); ["radar", "hrrr", "none"].forEach(x => $("m-" + x).setAttribute("aria-pressed", x === m));
   $("fields").hidden = m !== "hrrr";
   const fl = frameList();
   S.frame = m === "radar" ? Math.max(0, fl.length - 1) : 0; S.prevFrame = S.frame; fade = 1;
@@ -938,11 +1034,13 @@ function buildFields() {
   $("fields").innerHTML = FIELD_ORDER.filter(f => D.meta.hrrr.layers.includes(f)).map(f => {
     const mx = Math.max(...hrs.map(h => h.max?.[f] ?? -Infinity));
     const peak = isFinite(mx) ? `peak ${f === "stp" ? mx.toFixed(1) : Math.round(mx)}` : FIELD_INFO[f].unit;
-    return `<button data-f="${f}" aria-pressed="${f === S.field}"><span>${FIELD_INFO[f].name}</span><span class="u">${peak}</span></button>`;
-  }).join("");
+    return `<button data-f="${f}" aria-pressed="${f === S.field}" title="${FIELD_INFO[f].name}"><span>${FIELD_INFO[f].plain}</span><span class="u">${peak}</span></button>`;
+  }).join("") + `<p class="fhelp" id="fhelp"></p>`;
+  $("fhelp").textContent = FIELD_INFO[S.field].help;
   $("fields").onclick = e => {
     const b = e.target.closest("button"); if (!b) return;
-    S.field = b.dataset.f; [...$("fields").children].forEach(x => x.setAttribute("aria-pressed", x === b));
+    S.field = b.dataset.f; [...$("fields").querySelectorAll("button")].forEach(x => x.setAttribute("aria-pressed", x === b));
+    $("fhelp").textContent = FIELD_INFO[S.field].help; saveSettings();
     prefetchField(S.field); legend(); syncSlider(); draw();
   };
 }
@@ -979,7 +1077,7 @@ function buildWindUI() {
     $("sstkey").innerHTML = `<div class="cbar" style="background:linear-gradient(90deg,${sc.map(([v, c]) => `${c} ${((v - lo) / (hi - lo) * 100).toFixed(0)}%`).join(",")})"></div><div class="cticks">${[30, 40, 50, 60, 70, 80, 90].map(v => `<span>${v}${v === 90 ? "°F" : ""}</span>`).join("")}</div>`;
   }
   // Quick map buttons mirror the checkboxes.
-  document.querySelectorAll(".mapbtns .qt").forEach(b => {
+  document.querySelectorAll(".mapbtns .qt[data-for]").forEach(b => {
     const cb = $(b.dataset.for);
     b.disabled = cb.disabled;
     b.onclick = () => { cb.checked = !cb.checked; cb.dispatchEvent(new Event("change")); };
@@ -1227,6 +1325,7 @@ function selectPlace(c, zoom) {
   const st = abbr || (pi >= 0 ? PL.cities[pi][1] : (c.c === "USA" ? c.st : null));
   const p = proj([lon, lat]);
   S.place = { n: c.n, st, lat, lon, x: p[0], y: p[1], pi };
+  if (pi >= 0) store.set("csw.place", { n: c.n, abbr: st, lat, lon });
   if (zoom) zoomToBounds([[p[0] - 60, p[1] - 40], [p[0] + 60, p[1] + 40]]);
   renderPlace();
   $("placesec").hidden = false;
