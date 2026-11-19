@@ -13,14 +13,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
     var timer: Timer?
 
     func applicationDidFinishLaunching(_ note: Notification) {
-        NSApp.appearance = NSAppearance(named: .darkAqua)
+        NSApp.appearance = NSAppearance(named: .aqua)
         buildMenu()
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1440, height: 900),
                           styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                           backing: .buffered, defer: false)
         window.title = "CS's Storm Watch"
         window.titlebarAppearsTransparent = true
-        window.backgroundColor = NSColor(red: 0.04, green: 0.07, blue: 0.10, alpha: 1)
+        window.backgroundColor = NSColor(red: 0.93, green: 0.95, blue: 0.97, alpha: 1)
         window.minSize = NSSize(width: 900, height: 600)
         window.setFrameAutosaveName("StormwatchMain")
         if !window.setFrameUsingName("StormwatchMain") { window.center() }
@@ -57,7 +57,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
     func webView(_ webView: WKWebView, didFailProvisionalNavigation nav: WKNavigation!, withError error: Error) {
         loadFailed = true
         webView.loadHTMLString("""
-          <body style="background:#0a1119;color:#e6edf3;font:15px -apple-system;display:grid;place-items:center;height:100vh;margin:0">
+          <body style="background:#eef3f8;color:#13202e;font:15px -apple-system;display:grid;place-items:center;height:100vh;margin:0">
           <div style="text-align:center"><h2>Can't reach the map</h2><p>Check your internet connection. It will retry every minute.</p></div></body>
           """, baseURL: nil)
     }

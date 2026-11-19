@@ -281,7 +281,7 @@ def wpc_valid(kind, n, issued):
 
 
 def wpc_style(img):
-    """Recolor WPC's chart colors for a dark map, drop the label box and logo, and add a dark halo."""
+    """Recolor WPC's chart colors for the light map, drop the label box and logo, and add a white halo."""
     a = np.asarray(img.convert("RGBA")).copy()
     h, w = a.shape[:2]
     sy, sx = h / 931, w / 1400
@@ -295,21 +295,21 @@ def wpc_style(img):
     tc = np.zeros_like(green)
     tc[int(740 * sy):int(805 * sy), int(715 * sx):int(1000 * sx)] = True
     a[green & tc, 3] = 0                               # "latest tropical cyclone advisory" disclaimer
-    a[green, :3] = (226, 236, 246)
+    a[green, :3] = (72, 86, 106)
     blue = on & (b > 150) & (r < 90) & (g < 120)      # highs and cold fronts
-    a[blue, :3] = (90, 170, 255)
+    a[blue, :3] = (30, 104, 214)
     red = on & (r > 180) & (g < 90) & (b < 90)        # lows and warm fronts
-    a[red, :3] = (255, 80, 80)
+    a[red, :3] = (212, 44, 44)
     out = Image.fromarray(a, "RGBA")
     # Thicken isobars a little so they read on a phone; fronts and letters draw on top unchanged.
     iso = Image.fromarray((green & ~tc).astype(np.uint8) * 255, "L").filter(ImageFilter.MaxFilter(3))
-    thick = Image.new("RGBA", out.size, (226, 236, 246, 0))
-    thick.putalpha(iso.point(lambda v: 210 if v else 0))
+    thick = Image.new("RGBA", out.size, (72, 86, 106, 0))
+    thick.putalpha(iso.point(lambda v: 200 if v else 0))
     thick.alpha_composite(out)
     out = thick
     halo = out.getchannel("A").filter(ImageFilter.MaxFilter(3))
-    base = Image.new("RGBA", out.size, (8, 14, 22, 0))
-    base.putalpha(halo.point(lambda v: int(v * .75)))
+    base = Image.new("RGBA", out.size, (255, 255, 255, 0))
+    base.putalpha(halo.point(lambda v: int(v * .8)))
     base.alpha_composite(out)
     return base
 

@@ -122,20 +122,20 @@ def terrain(elev, land):
     shade = np.sin(alt) * np.cos(slope) + np.cos(alt) * np.sin(slope) * np.cos(az - (np.pi / 2 - aspect))
     shade = np.clip(shade, 0, 1)
 
-    # Muted night-mode hypsometric tint so weather layers stay dominant.
+    # Soft daytime palette: pale sage lowlands, warm sand uplands, light snowy peaks, airy blue water.
     land_c = ramp(np.clip(elev, -100, 4300), [
-        (-100, (44, 58, 52)), (0, (46, 62, 52)), (300, (54, 70, 56)), (800, (70, 78, 60)),
-        (1500, (88, 84, 68)), (2200, (102, 92, 80)), (3000, (118, 112, 106)), (4300, (150, 150, 152))])
+        (-100, (230, 235, 230)), (0, (231, 236, 229)), (300, (232, 235, 226)), (800, (233, 232, 223)),
+        (1500, (229, 225, 215)), (2200, (223, 218, 209)), (3000, (229, 228, 227)), (4300, (247, 247, 249))])
     sea_c = ramp(np.clip(-elev, 0, 6000), [
-        (0, (40, 74, 96)), (50, (32, 64, 88)), (200, (24, 52, 78)), (1000, (18, 40, 66)),
-        (3000, (13, 30, 54)), (6000, (9, 20, 40))])
+        (0, (196, 224, 242)), (50, (186, 216, 238)), (200, (172, 206, 232)), (1000, (156, 194, 226)),
+        (3000, (142, 182, 220)), (6000, (128, 170, 212))])
     base = np.where(land[..., None], land_c, sea_c)
-    k = np.where(land, 0.45 + 0.95 * shade, 0.72 + 0.5 * shade)[..., None]
+    k = np.where(land, 0.80 + 0.32 * shade, 0.94 + 0.10 * shade)[..., None]
     rgb = np.clip(base * k, 0, 255).astype(np.uint8)
-    # Soft coastline glow on the water side.
-    edge = Image.fromarray((land * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(3))
-    glow = (np.asarray(edge).astype(np.float32) / 255)[..., None] * (~land)[..., None]
-    rgb = np.clip(rgb + glow * np.array([22, 40, 48]), 0, 255).astype(np.uint8)
+    # Thin, slightly darker shoreline on the water side.
+    edge = Image.fromarray((land * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(1.2))
+    shore = (np.asarray(edge).astype(np.float32) / 255)[..., None] * (~land)[..., None]
+    rgb = np.clip(rgb - shore * np.array([40, 30, 18]), 0, 255).astype(np.uint8)
     return Image.fromarray(rgb, "RGB")
 
 
