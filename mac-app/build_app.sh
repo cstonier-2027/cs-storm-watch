@@ -13,7 +13,7 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 swiftc -O -o "$APP/Contents/MacOS/CSStormWatch" "$HERE/main.swift" \
   -framework Cocoa -framework WebKit
 
-"$PY" "$HERE/make_icon.py" "$WORK/icon.png"
+cp "$HERE/icon-mac-1024.png" "$WORK/icon.png"   # from icon-source.png (the plaid sun-and-cloud badge)
 mkdir -p "$WORK/AppIcon.iconset"
 for s in 16 32 128 256 512; do
   sips -z $s $s "$WORK/icon.png" --out "$WORK/AppIcon.iconset/icon_${s}x${s}.png" >/dev/null
