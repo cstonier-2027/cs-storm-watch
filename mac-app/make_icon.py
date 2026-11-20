@@ -12,7 +12,7 @@ from PIL import Image, ImageDraw, ImageFilter
 HERE = os.path.dirname(os.path.abspath(__file__))
 N, C = 1600, 799.5                      # canvas size and center
 R_OUT = 795                             # outer edge of the badge
-R_CENTER = 455                          # outer edge of the gold-ringed cream center (was ~680)
+R_CENTER = 500                          # outer edge of the gold-ringed cream center (was ~680)
 BG = (9, 19, 31)                        # deep navy behind the badge, matching the tartan
 
 def tartan(n, period=210):
@@ -41,8 +41,43 @@ def dashed_circle(draw, r, color, width, dash_deg, gap_deg):
         draw.arc([C - r, C - r, C + r, C + r], a, min(a + dash_deg, 360), fill=color, width=width)
         a += dash_deg + gap_deg
 
+GRAPHIC_SCALE = 1.5                     # sun and cloud size inside the cream center (1 = original)
+
+
+def enlarge_graphic(src):
+    """Lift the sun-and-cloud off the cream center, fill the gap with cream, and put it back larger and centered."""
+    a = np.asarray(src.convert("RGB")).astype(np.float32)
+    cream = np.array([243, 233, 215], np.float32)
+    yy, xx = np.mgrid[0:N, 0:N]
+    inside = (xx - C) ** 2 + (yy - C) ** 2 < 600 ** 2            # within the inner dashed stitch
+    mask = (np.abs(a - cream).sum(axis=2) > 40) & inside
+    m = Image.fromarray((mask * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(9))
+    hole = np.asarray(m) > 0
+    # Fill the hole with the surrounding cream (normalized blur).
+    keep = (~hole).astype(np.float32)
+    def blur(arr, r=40, passes=3):                              # repeated box blur ~ Gaussian
+        for _ in range(passes):
+            for ax in (0, 1):
+                c = np.cumsum(np.pad(arr, [(r + 1, r) if i == ax else (0, 0) for i in range(2)], mode="edge"), axis=ax)
+                arr = (np.take(c, range(2 * r + 1, c.shape[ax]), axis=ax) - np.take(c, range(0, c.shape[ax] - 2 * r - 1), axis=ax)) / (2 * r + 1)
+        return arr
+    w = blur(keep)
+    filled = a.copy()
+    for c in range(3):
+        filled[..., c] = np.where(hole, blur(a[..., c] * keep) / np.maximum(w, 1e-3), a[..., c])
+    base = Image.fromarray(np.clip(filled, 0, 255).astype(np.uint8)).convert("RGBA")
+    # The graphic with a soft edge, scaled about its own center and re-centered on the badge.
+    ys, xs = np.nonzero(hole)
+    x0, x1, y0, y1 = xs.min(), xs.max() + 1, ys.min(), ys.max() + 1
+    g = src.crop((x0, y0, x1, y1)).copy()
+    g.putalpha(m.crop((x0, y0, x1, y1)).filter(ImageFilter.GaussianBlur(1.5)))
+    g = g.resize((int(g.width * GRAPHIC_SCALE), int(g.height * GRAPHIC_SCALE)), Image.LANCZOS)
+    base.alpha_composite(g, (int(C - g.width / 2), int(C - g.height / 2 + 10)))
+    return base
+
+
 def main():
-    src = Image.open(os.path.join(HERE, "icon-source.png")).convert("RGBA")
+    src = enlarge_graphic(Image.open(os.path.join(HERE, "icon-source.png")).convert("RGBA"))
     out = Image.new("RGBA", (N, N), BG + (255,))
 
     # Tartan ring with a soft dark rim and inner shadow.
