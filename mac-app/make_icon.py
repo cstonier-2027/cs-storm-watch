@@ -12,7 +12,7 @@ from PIL import Image, ImageDraw, ImageFilter
 HERE = os.path.dirname(os.path.abspath(__file__))
 N, C = 1600, 799.5                      # canvas size and center
 R_OUT = 795                             # outer edge of the badge
-R_CENTER = 500                          # outer edge of the gold-ringed cream center (was ~680)
+R_CENTER = 545                          # outer edge of the gold-ringed cream center (was ~680)
 BG = (9, 19, 31)                        # deep navy behind the badge, matching the tartan
 
 def tartan(n, period=210):
@@ -41,7 +41,7 @@ def dashed_circle(draw, r, color, width, dash_deg, gap_deg):
         draw.arc([C - r, C - r, C + r, C + r], a, min(a + dash_deg, 360), fill=color, width=width)
         a += dash_deg + gap_deg
 
-GRAPHIC_SCALE = 1.5                     # sun and cloud size inside the cream center (1 = original)
+GRAPHIC_SCALE = 1.6                     # sun and cloud size inside the cream center (1 = original)
 
 
 def enlarge_graphic(src):

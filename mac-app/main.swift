@@ -1,4 +1,4 @@
-// CS's Storm Watch for macOS: a native window around the live map site.
+// Tempo Radar for macOS: a native window around the live map site.
 // GitHub refreshes the site every 30 minutes; the app reloads when meta.json's build time changes.
 import Cocoa
 import WebKit
@@ -18,7 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1440, height: 900),
                           styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                           backing: .buffered, defer: false)
-        window.title = "CS's Storm Watch"
+        window.title = "Tempo Radar"
         window.titlebarAppearsTransparent = true
         window.backgroundColor = NSColor(red: 0.05, green: 0.07, blue: 0.11, alpha: 1)
         window.minSize = NSSize(width: 900, height: 600)
@@ -81,10 +81,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
         let main = NSMenu()
         let appItem = NSMenuItem(); main.addItem(appItem)
         let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "About CS's Storm Watch", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        appMenu.addItem(withTitle: "About Tempo Radar", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "Hide CS's Storm Watch", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
-        appMenu.addItem(withTitle: "Quit CS's Storm Watch", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appMenu.addItem(withTitle: "Hide Tempo Radar", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        appMenu.addItem(withTitle: "Quit Tempo Radar", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appItem.submenu = appMenu
 
         let viewItem = NSMenuItem(); main.addItem(viewItem)

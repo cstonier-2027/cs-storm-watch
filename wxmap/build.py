@@ -1,4 +1,4 @@
-"""Fetch NWS / SPC / NOAA data and render map layers for the CS's Storm Watch page.
+"""Fetch NWS / SPC / NOAA data and render map layers for the Tempo Radar page.
 
 Run:  <venv>/bin/python build.py
 Writes everything into ./data next to this file.
@@ -26,7 +26,7 @@ import global_build
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "data")
-UA = "CS Storm Watch map builder (personal, non-commercial)"
+UA = "Tempo Radar map builder (personal, non-commercial)"
 
 # Web Mercator frame shared by every raster and the page's projection.
 R = 6378137.0

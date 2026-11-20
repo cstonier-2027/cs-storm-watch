@@ -1,4 +1,4 @@
-# Rebuilds the weather data every 30 minutes and deploys CS's Storm Watch to Cloudflare.
+# Rebuilds the weather data every 30 minutes and deploys Tempo Radar to Cloudflare.
 name: Refresh map
 
 on:

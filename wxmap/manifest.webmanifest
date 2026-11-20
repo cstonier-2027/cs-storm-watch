@@ -1,6 +1,6 @@
 {
-  "name": "CS's Storm Watch",
-  "short_name": "Storm Watch",
+  "name": "Tempo Radar",
+  "short_name": "Tempo Radar",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

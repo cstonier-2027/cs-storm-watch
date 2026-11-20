@@ -1,16 +1,16 @@
 #!/bin/bash
-# Builds "CS's Storm Watch.app" into the Storm Watch folder. The app shows the live Cloudflare site.
+# Builds "Tempo Radar.app" into the Storm Watch folder. The app shows the live Cloudflare site.
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(dirname "$HERE")"
-APP="$ROOT/CS's Storm Watch.app"
+APP="$ROOT/Tempo Radar.app"
 PY="$ROOT/wxmap/.venv/bin/python"
 WORK="$(mktemp -d)"
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
-swiftc -O -o "$APP/Contents/MacOS/CSStormWatch" "$HERE/main.swift" \
+swiftc -O -o "$APP/Contents/MacOS/TempoRadar" "$HERE/main.swift" \
   -framework Cocoa -framework WebKit
 
 "$PY" "$HERE/make_icon.py"                       # icon-source.png -> icon-full.png, icon-mac-1024.png
@@ -27,10 +27,10 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleName</key><string>CS's Storm Watch</string>
-  <key>CFBundleDisplayName</key><string>CS's Storm Watch</string>
-  <key>CFBundleIdentifier</key><string>local.csstormwatch.map</string>
-  <key>CFBundleExecutable</key><string>CSStormWatch</string>
+  <key>CFBundleName</key><string>Tempo Radar</string>
+  <key>CFBundleDisplayName</key><string>Tempo Radar</string>
+  <key>CFBundleIdentifier</key><string>local.temporadar.map</string>
+  <key>CFBundleExecutable</key><string>TempoRadar</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>1.0</string>

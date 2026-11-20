@@ -1,5 +1,5 @@
 #!/bin/bash
-# Deploys the CS's Storm Watch map (index.html + data/) to Cloudflare (Workers static assets).
+# Deploys the Tempo Radar map (index.html + data/) to Cloudflare (Workers static assets).
 # Run after wxmap/build.py finishes. Uses the token in ~/.config/stormwatch/cloudflare.env.
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
