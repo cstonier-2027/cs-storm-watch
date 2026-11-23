@@ -108,7 +108,7 @@ def pixel_lonlat(frame, w, h, x, y):
 
 
 # ---------------------------------------------------------------- per-hour model stats
-CITY_VARS = {"t2": 0, "td2": 0, "refc": 0, "mlcape": 0, "stp": 1, "uh": 0, "srh1": 0, "shr6": 0}  # value: decimals
+CITY_VARS = {"t2": 0, "td2": 0, "refc": 0, "mlcape": 0, "stp": 1, "uh": 0, "srh1": 0, "shr6": 0, "tcc": 0, "ptype": 0}  # value: decimals
 
 
 def city_pixels(cities, frame, w, h):
@@ -161,6 +161,8 @@ def hour_stats(d, jj, ii, valid, st, names, frame, probe, cpx=()):
     for k, nd in CITY_VARS.items():
         if len(ys) == 0:
             break
+        if k not in d:
+            continue
         vals = d[k][jj[ys, xs], ii[ys, xs]]
         ok = valid[ys, xs]
         out["city"][k] = [None if not (o and np.isfinite(v)) else round(float(v), nd) if nd else int(round(float(v)))
@@ -173,7 +175,7 @@ def places(cpx, hrrr, hours_stats):
     hs = [(h, s) for h, s in zip(hrrr.get("hours", []), hours_stats) if s and "city" in s]
     return {"hours": [h["valid"] for h, _ in hs],
             "cities": [[c["n"], ABBR[c["st"]], c["lat"], c["lon"]] for c, _, _ in cpx],
-            "vars": {k: [[s["city"][k][i] for _, s in hs] for i in range(len(cpx))] for k in CITY_VARS}}
+            "vars": {k: [[s["city"].get(k, [None] * len(cpx))[i] for _, s in hs] for i in range(len(cpx))] for k in CITY_VARS}}
 
 
 # ---------------------------------------------------------------- text helpers

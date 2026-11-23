@@ -288,6 +288,11 @@ FIELDS = [  # (key in idx line, short name)
     ("MXUPHL:5000-2000 m above ground", "uh"),
     ("TMP:2 m above ground", "t2"),
     ("DPT:2 m above ground", "td2"),
+    ("TCDC:entire atmosphere", "tcc"),      # cloud cover, % (for the hourly weather icons)
+    ("CRAIN:surface", "crain"),             # categorical precipitation type, 0/1 each
+    ("CSNOW:surface", "csnow"),
+    ("CICEP:surface", "cicep"),
+    ("CFRZR:surface", "cfrzr"),
 ]
 
 
@@ -660,10 +665,14 @@ def derive(f):
     shr_term = np.where(shr6_ms < 12.5, 0, np.minimum(shr6_ms, 30) / 20)
     cin_term = np.clip((200 + f["mlcin"]) / 150, 0, 1)
     stp = (ml / 1500) * lcl_term * (np.maximum(f["srh1"], 0) / 150) * shr_term * cin_term
+    # Precipitation type for the icons: 0 none, 1 rain, 2 snow, 3 sleet, 4 freezing rain (most hazardous wins).
+    z = np.zeros_like(f["t2"])
+    ptype = np.where(f.get("cfrzr", z) > .5, 4, np.where(f.get("cicep", z) > .5, 3, np.where(f.get("csnow", z) > .5, 2, np.where(f.get("crain", z) > .5, 1, 0))))
     return {
         "refc": f["refc"], "stp": np.maximum(stp, 0), "mlcape": ml, "sbcape": np.maximum(f["sbcape"], 0),
         "srh1": f["srh1"], "srh3": f["srh3"], "shr6": shr6, "uh": f["uh"], "mlcin": f["mlcin"],
         "t2": (f["t2"] - 273.15) * 9 / 5 + 32, "td2": (f["td2"] - 273.15) * 9 / 5 + 32,
+        "tcc": f.get("tcc", np.full_like(f["t2"], np.nan)), "ptype": ptype,
     }
 
 

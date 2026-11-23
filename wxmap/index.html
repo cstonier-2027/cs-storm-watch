@@ -216,7 +216,7 @@ canvas#map { position: absolute; inset: 0; width: 100%; height: 100%; display: b
 .hkey { font: 10.5px var(--f-mono); color: var(--ink-3); margin-top: 4px; }
 .nws { display: grid; gap: 2px; }
 .nws details { background: var(--panel); border-radius: 4px; }
-.nws summary { list-style: none; display: grid; grid-template-columns: 74px 44px minmax(0,1fr) 38px; gap: 8px; align-items: center; padding: 7px 8px; cursor: pointer; font-size: 12.5px; }
+.nws summary { list-style: none; display: grid; grid-template-columns: 74px 26px 40px minmax(0,1fr) 38px; gap: 8px; align-items: center; padding: 7px 8px; cursor: pointer; font-size: 12.5px; }
 .nws summary::-webkit-details-marker { display: none; }
 .nws summary b { font: 600 12.5px var(--f-body); color: var(--ink); }
 .nws summary .t { font: 600 16px var(--f-display); text-align: right; }
@@ -364,9 +364,13 @@ select.sel, .filt, .find input { background: var(--panel-2); border: 1px solid v
 .citycard:hover { box-shadow: 0 8px 26px rgba(0,0,0,.5); }
 .cc-name { font: 600 13px var(--f-body); color: var(--ink-2); }
 .cc-temp { font: 300 44px/1.05 var(--f-body); letter-spacing: -.03em; }
+.cc-row { display: flex; align-items: center; gap: 8px; }
+.cc-icon .wxi { width: 44px; height: 44px; }
+.wxi { width: 24px; height: 24px; display: block; flex: none; }
+.hrly .wxi { width: 26px; height: 26px; }
 .cc-line { font: 600 13px var(--f-body); }
 .cc-range { font: 500 12px var(--f-body); color: var(--ink-3); }
-@media (max-width: 860px) { .cc-temp { font-size: 36px; } .citycard { padding: 8px 14px 10px; min-width: 130px; } }
+@media (max-width: 860px) { .cc-temp { font-size: 36px; } .cc-icon .wxi { width: 36px; height: 36px; } .citycard { padding: 8px 14px 10px; min-width: 130px; } }
 #fcsec h2 { flex-direction: column; align-items: flex-start; gap: 2px; }
 /* Collapsible hazards card. */
 .hzhead { display: flex; align-items: center; gap: 8px; width: 100%; background: none; border: 0; padding: 0; cursor: pointer; font: 600 15px var(--f-body); color: var(--ink); text-align: left; }
@@ -486,7 +490,7 @@ select.sel, .filt, .find input { background: var(--panel-2); border: 1px solid v
         <div class="tl">
         <button class="citycard" id="citycard" hidden aria-label="Open this city's forecast">
           <span class="cc-name" id="cc-name"></span>
-          <span class="cc-temp" id="cc-temp"></span>
+          <span class="cc-row"><span class="cc-temp" id="cc-temp"></span><span class="cc-icon" id="cc-icon"></span></span>
           <span class="cc-line" id="cc-line"></span>
           <span class="cc-range" id="cc-range"></span>
         </button>
@@ -1571,6 +1575,81 @@ $("fcbtn").onclick = () => {
   r.classList.toggle("show", on); $("fcbtn").setAttribute("aria-pressed", on);
 };
 
+// ---------- weather icons (small inline SVGs for the hourly strip, the 7-day list and the city card)
+const WXI = (() => {
+  const cloud = (dy = 0, fill = "#dfe7f1") => `<path transform="translate(0 ${dy})" d="M7.2 18h10.2a4 4 0 0 0 .5-7.97 5.6 5.6 0 0 0-10.9-.9A4.45 4.45 0 0 0 7.2 18z" fill="${fill}"/>`;
+  const sun = (cx = 12, cy = 12, r = 4.2, ray = 3) => {
+    let rays = "";
+    for (let a = 0; a < 8; a++) { const t = a * Math.PI / 4, c = Math.cos(t), s = Math.sin(t); rays += `M${(cx + c * (r + 1.6)).toFixed(1)} ${(cy + s * (r + 1.6)).toFixed(1)}L${(cx + c * (r + 1.6 + ray)).toFixed(1)} ${(cy + s * (r + 1.6 + ray)).toFixed(1)}`; }
+    return `<path d="${rays}" stroke="#f6b73c" stroke-width="1.7" stroke-linecap="round"/><circle cx="${cx}" cy="${cy}" r="${r}" fill="#f6b73c"/>`;
+  };
+  const moon = (x = 0, y = 0, sc = 1) => `<path transform="translate(${x} ${y}) scale(${sc})" d="M15.6 3.4a8.6 8.6 0 1 0 5.2 13.9 7 7 0 0 1-5.2-13.9z" fill="#cdd8ff"/>`;
+  const drops = (n = 3, color = "#5aa9ff") => `<path d="${[8.5, 12.5, 16.5].slice(0, n).map(x => `M${x} 18.6l-1.1 2.8`).join("")}" stroke="${color}" stroke-width="1.9" stroke-linecap="round"/>`;
+  const flakes = () => `<g fill="#eef5ff">${[[8.5, 19.6], [12.5, 21.4], [16.5, 19.6]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1.25"/>`).join("")}</g>`;
+  const bolt = `<path d="M12.6 14.2l-3.1 4.6h2.4l-1 4 4.1-5.6h-2.5l1.2-3z" fill="#ffd34d"/>`;
+  const svg = (inner, label) => `<svg class="wxi" viewBox="0 0 24 24" role="img" aria-label="${label}">${inner}</svg>`;
+  return {
+    sun: () => svg(sun(), "Sunny"),
+    moon: () => svg(moon(), "Clear"),
+    partlyDay: () => svg(sun(9, 8.5, 3.2, 2.2) + cloud(2.5), "Partly cloudy"),
+    partlyNight: () => svg(moon(-1.5, -1.5, .72) + cloud(2.5), "Partly cloudy"),
+    cloudy: () => svg(cloud(-2.5, "#9fb0c3") + cloud(1.5), "Cloudy"),
+    showersDay: () => svg(sun(8, 6.5, 2.8, 2) + cloud(-1.5) + drops(2), "Showers"),
+    showersNight: () => svg(moon(-2, -3, .65) + cloud(-1.5) + drops(2), "Showers"),
+    rain: () => svg(cloud(-2) + drops(3), "Rain"),
+    heavyRain: () => svg(cloud(-2, "#9fb0c3") + drops(3, "#3d8bff") + `<path d="M10.5 18.6l-1.1 2.8M14.5 18.6l-1.1 2.8" stroke="#3d8bff" stroke-width="1.9" stroke-linecap="round" transform="translate(0 1.5)"/>`, "Heavy rain"),
+    thunder: () => svg(cloud(-3, "#8a9bb0") + bolt + `<path d="M7.6 18.6l-1 2.6M17.6 18.6l-1 2.6" stroke="#5aa9ff" stroke-width="1.8" stroke-linecap="round"/>`, "Thunderstorms"),
+    snow: () => svg(cloud(-2) + flakes(), "Snow"),
+    mix: () => svg(cloud(-2) + `<path d="M8.5 18.6l-1.1 2.8M16.5 18.6l-1.1 2.8" stroke="#5aa9ff" stroke-width="1.9" stroke-linecap="round"/><circle cx="12.5" cy="20.4" r="1.25" fill="#eef5ff"/>`, "Wintry mix"),
+    freezing: () => svg(cloud(-2) + drops(3, "#7fe0ff") + `<path d="M6.5 22.3h12" stroke="#7fe0ff" stroke-width="1.4" stroke-linecap="round"/>`, "Freezing rain"),
+    fog: () => svg(cloud(-3) + `<path d="M5 18.5h14M7 21.5h10" stroke="#a9b6c4" stroke-width="1.8" stroke-linecap="round"/>`, "Fog"),
+    wind: () => svg(`<path d="M3 9h11a3 3 0 1 0-3-3M3 13h15a3 3 0 1 1-3 3M3 17h7" fill="none" stroke="#bcd7ff" stroke-width="1.9" stroke-linecap="round"/>`, "Windy"),
+  };
+})();
+// NWS wording -> icon.
+function nwsIcon(text, day) {
+  const t = (text || "").toLowerCase();
+  if (/thunder|t-storm/.test(t)) return WXI.thunder();
+  if (/freezing (rain|drizzle)|ice storm/.test(t)) return WXI.freezing();
+  if (/sleet|wintry mix|rain and snow|snow and rain|ice pellets/.test(t)) return WXI.mix();
+  if (/snow|flurr|blizzard/.test(t)) return WXI.snow();
+  if (/heavy rain/.test(t)) return WXI.heavyRain();
+  if (/rain|shower|drizzle/.test(t)) return /chance/.test(t) && !/likely/.test(t) ? (day ? WXI.showersDay() : WXI.showersNight()) : WXI.rain();
+  if (/fog|haze|smoke|dust|mist/.test(t)) return WXI.fog();
+  if (/partly|mostly sunny|mostly clear|becoming sunny|increasing clouds/.test(t)) return day ? WXI.partlyDay() : WXI.partlyNight();
+  if (/cloudy|overcast/.test(t)) return WXI.cloudy();
+  if (/wind|breezy|blustery|gust/.test(t)) return WXI.wind();
+  if (/sunny|clear|fair|hot/.test(t)) return day ? WXI.sun() : WXI.moon();
+  return day ? WXI.partlyDay() : WXI.partlyNight();
+}
+// Is the sun up at this place and time? (Simple solar-elevation estimate; good to a few minutes.)
+function isDay(lat, lon, iso) {
+  const d = new Date(iso), jd = d / 864e5 + 2440587.5, n = jd - 2451545;
+  const L = (280.46 + .9856474 * n) % 360, g = (357.528 + .9856003 * n) * Math.PI / 180;
+  const lam = (L + 1.915 * Math.sin(g) + .02 * Math.sin(2 * g)) * Math.PI / 180, eps = 23.439 * Math.PI / 180;
+  const dec = Math.asin(Math.sin(eps) * Math.sin(lam));
+  const ra = Math.atan2(Math.cos(eps) * Math.sin(lam), Math.cos(lam));
+  const gmst = (18.697374558 + 24.06570982441908 * n) % 24, ha = (gmst * 15 + lon) * Math.PI / 180 - ra;
+  const la = lat * Math.PI / 180;
+  return Math.sin(la) * Math.sin(dec) + Math.cos(la) * Math.cos(dec) * Math.cos(ha) > -0.0145;  // sun above about -0.8 degrees
+}
+// HRRR hour -> icon: radar strength, precipitation type, storm strength and cloud cover.
+function hourIcon(V, i, k, lat, lon, iso) {
+  const g = name => V[name]?.[i]?.[k];
+  const rc = g("refc") ?? -99, pt = g("ptype") ?? 0, tcc = g("tcc"), t2 = g("t2"), uh = g("uh") ?? 0, cape = g("mlcape") ?? 0;
+  const day = isDay(lat, lon, iso);
+  if (rc >= 50 || (rc >= 42 && (uh >= 20 || cape >= 500))) return WXI.thunder();
+  if (rc >= 18 || (pt > 0 && rc >= 8)) {
+    if (pt === 4) return WXI.freezing();
+    if (pt === 3) return WXI.mix();
+    if (pt === 2 || (pt === 0 && t2 != null && t2 <= 32)) return WXI.snow();
+    return rc >= 40 ? WXI.heavyRain() : rc < 25 && tcc != null && tcc < 70 ? (day ? WXI.showersDay() : WXI.showersNight()) : WXI.rain();
+  }
+  if (tcc != null && tcc >= 80) return WXI.cloudy();
+  if (tcc != null && tcc >= 30) return day ? WXI.partlyDay() : WXI.partlyNight();
+  return day ? WXI.sun() : WXI.moon();
+}
+
 // ---------- place panel (click a city or search)
 let drawn = [], PL = null;
 const NWS_CACHE = {};
@@ -1705,8 +1784,8 @@ function renderPlace() {
     if (mc >= 1000 && (stp[iStp] ?? 0) < 1) bullets.push(`Unstable air (CAPE up to ${mc.toLocaleString()} J/kg) if storms form.`);
     const mtd = Math.max(...td.map(v => v ?? -99));
     if (mtd >= 65) bullets.push(`Humid: dewpoints near ${mtd}°F.`);
-    strip = `<div class="hrly">${H.map((h, k) => `<div><span>${hourLabel(h)}</span><b>${val("t2")[k] ?? "–"}°</b><i style="--c:${(rc[k] ?? -99) >= 5 ? refcColor(rc[k]) : "transparent"}" title="${rc[k] ?? ""} dBZ"></i>${(stp[k] ?? 0) >= 0.5 ? `<span class="stp">${stp[k].toFixed(1)}</span>` : "<span>&nbsp;</span>"}</div>`).join("")}</div>
-      <div class="hkey">Hourly temperature · radar color · STP shown when 0.5+ · HRRR ${esc(fmtDate(D.meta.hrrr.cycle))} run</div>`;
+    strip = `<div class="hrly">${H.map((h, k) => `<div><span>${hourLabel(h)}</span>${hourIcon(V, i, k, P.lat, P.lon, h)}<b>${val("t2")[k] ?? "–"}°</b>${(stp[k] ?? 0) >= 0.5 ? `<span class="stp">${stp[k].toFixed(1)}</span>` : "<span>&nbsp;</span>"}</div>`).join("")}</div>
+      <div class="hkey">Hourly weather and temperature · STP shown when 0.5+ · HRRR ${esc(fmtDate(D.meta.hrrr.cycle))} run</div>`;
   }
 
   el.innerHTML = head + al + `
@@ -1742,6 +1821,7 @@ function updateCityCard() {
   }
   $("cc-name").textContent = `${c.n}${c.abbr ? ", " + c.abbr : ""}`;
   $("cc-temp").textContent = `${t[h0]}°`;
+  $("cc-icon").innerHTML = hourIcon(V, i, h0, c.lat, c.lon, H[h0]);
   $("cc-line").textContent = line;
   $("cc-range").textContent = `Next ${H.length - h0} h: ${Math.min(...temps)}° to ${Math.max(...temps)}°`;
   $("citycard").hidden = false;
@@ -1759,7 +1839,7 @@ async function loadNws(P) {
     const r = await NWS_CACHE[key];
     if (S.place !== P) return;  // the user moved on
     $("p-office").textContent = ` · NWS ${r.office}`;
-    $("nws").innerHTML = r.periods.slice(0, 14).map((d, k) => `<details${k === 0 ? " open" : ""}><summary><b>${esc(d.name)}</b><span class="t ${d.isDaytime ? "hi" : "lo"}">${d.temperature}°</span><span>${esc(d.shortForecast)}</span><em>${d.probabilityOfPrecipitation?.value ? d.probabilityOfPrecipitation.value + "%" : ""}</em></summary><p>${esc(d.detailedForecast)}</p></details>`).join("")
+    $("nws").innerHTML = r.periods.slice(0, 14).map((d, k) => `<details${k === 0 ? " open" : ""}><summary><b>${esc(d.name)}</b>${nwsIcon(d.shortForecast, d.isDaytime)}<span class="t ${d.isDaytime ? "hi" : "lo"}">${d.temperature}°</span><span>${esc(d.shortForecast)}</span><em>${d.probabilityOfPrecipitation?.value ? d.probabilityOfPrecipitation.value + "%" : ""}</em></summary><p>${esc(d.detailedForecast)}</p></details>`).join("")
       || `<p class="note">No forecast periods returned.</p>`;
   } catch (e) {
     delete NWS_CACHE[key];
